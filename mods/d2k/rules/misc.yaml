@@ -22,12 +22,12 @@ crate:
 		SelectionShares: 5
 	HideMapCrateAction:
 		SelectionShares: 5
-		Effect: hide-map
+		Sequence: hide-map
 	LevelUpCrateAction:
 		SelectionShares: 40
 	RevealMapCrateAction:
 		SelectionShares: 2
-		Effect: reveal-map
+		Sequence: reveal-map
 	GiveUnitCrateAction@LightInfantry:
 		SelectionShares: 15
 		Units: light_inf, light_inf, light_inf, light_inf, light_inf
@@ -134,7 +134,7 @@ crate:
 		Palette: effect
 	WithCrateBody:
 	Passenger:
-	EditorTilesetFilter:
+	MapEditorData:
 		Categories: System
 	Interactable:
 		Bounds: 20,20
@@ -150,8 +150,10 @@ mpspawn:
 	WithSpriteBody:
 	BodyOrientation:
 		QuantizedFacings: 1
-	EditorTilesetFilter:
+	MapEditorData:
 		Categories: System
+	RequiresSpecificOwners:
+		ValidOwnerNames: Neutral
 
 waypoint:
 	Interactable:
@@ -164,14 +166,15 @@ waypoint:
 	WithSpriteBody:
 	BodyOrientation:
 		QuantizedFacings: 1
-	EditorTilesetFilter:
+	MapEditorData:
 		Categories: System
 
-^carryall.colorpicker:
+carryall.colorpicker:
 	Inherits: carryall
-	-Health:
 	Aircraft:
 		InitialFacing: 104
+	-Buildable:
+	-MapEditorData:
 	RenderSprites:
 		Image: carryall
 		Palette: colorpicker
@@ -190,7 +193,7 @@ camera:
 	RevealsShroud:
 		Range: 6c768
 		Type: CenterPosition
-	EditorTilesetFilter:
+	MapEditorData:
 		Categories: System
 
 wormspawner:
@@ -204,8 +207,8 @@ wormspawner:
 	WithSpriteBody:
 	BodyOrientation:
 		QuantizedFacings: 1
-	WormSpawner:
-	EditorTilesetFilter:
+	ActorSpawner:
+	MapEditorData:
 		Categories: System
 
 upgrade.conyard:

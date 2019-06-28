@@ -1,6 +1,7 @@
 E2:
 	Inherits: ^Soldier
 	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Buildable:
 		Queue: Infantry
@@ -11,6 +12,8 @@ E2:
 		Cost: 200
 	Tooltip:
 		Name: Disc Thrower
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 15000
 	Mobile:
@@ -33,10 +36,13 @@ E2:
 MEDIC:
 	Inherits: ^Soldier
 	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
 	Valued:
 		Cost: 600
 	Tooltip:
 		Name: Medic
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Infantry
 		BuildPaletteOrder: 50
@@ -73,11 +79,14 @@ MEDIC:
 JUMPJET:
 	Inherits: ^Soldier
 	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Valued:
 		Cost: 600
 	Tooltip:
 		Name: Jumpjet Infantry
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Infantry
 		BuildPaletteOrder: 70
@@ -87,11 +96,7 @@ JUMPJET:
 		VoiceSet: JumpJet
 	Mobile:
 		Speed: 71
-		Jumpjet: True
-		JumpjetTransitionCost: 100
-		JumpjetCondition: airborne
-		TerrainSpeeds:
-			Jumpjet: 110
+		Locomotor: jumpjet
 	Health:
 		HP: 12000
 	Armor:
@@ -152,12 +157,13 @@ JUMPJET:
 		RequiresCondition: !airborne
 	WithShadow@airborne:
 		RequiresCondition: airborne
+	GrantConditionOnJumpjetLayer:
+		Condition: airborne
 
 JUMPJET.Husk:
 	RenderSprites:
 	BodyOrientation:
 		QuantizedFacings: 1
-	Aircraft:
 	HiddenUnderFog:
 		Type: GroundPosition
 	ScriptTriggers:
@@ -186,19 +192,20 @@ JUMPJET.Husk:
 	WithDeathAnimation@SPLASH:
 		RequiresCondition: water-death
 		FallbackSequence: die-splash
-	EditorTilesetFilter:
-		Categories: Husk
 	Interactable:
 
 GHOST:
 	Inherits: ^Soldier
 	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
 	Inherits@2: ^HealsOnTiberium
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Valued:
 		Cost: 1750
 	Tooltip:
 		Name: Ghost Stalker
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Infantry
 		BuildPaletteOrder: 90

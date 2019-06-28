@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,11 +10,9 @@
 #endregion
 
 using System;
-using System.Drawing;
-using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Graphics;
-using OpenRA.Traits;
+using OpenRA.Primitives;
 
 namespace OpenRA.Mods.Common.HitShapes
 {
@@ -30,10 +28,10 @@ namespace OpenRA.Mods.Common.HitShapes
 
 		public readonly WDist Radius = new WDist(426);
 
-		[Desc("Defines the top offset relative to the actor's target point.")]
+		[Desc("Defines the top offset relative to the actor's center.")]
 		public readonly int VerticalTopOffset = 0;
 
-		[Desc("Defines the bottom offset relative to the actor's target point.")]
+		[Desc("Defines the bottom offset relative to the actor's center.")]
 		public readonly int VerticalBottomOffset = 0;
 
 		int2 ab;

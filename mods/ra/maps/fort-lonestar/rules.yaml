@@ -29,17 +29,17 @@ World:
 	LuaScript:
 		Scripts: fort-lonestar.lua, fort-lonestar-AI.lua
 	MapBuildRadius:
-		AllyBuildRadiusCheckboxLocked: True
-		AllyBuildRadiusCheckboxEnabled: True
-		BuildRadiusCheckboxLocked: True
-		BuildRadiusCheckboxEnabled: True
+		AllyBuildRadiusCheckboxVisible: False
+		BuildRadiusCheckboxVisible: False
 	SpawnMPUnits:
-		DropdownLocked: True
+		DropdownVisible: False
 	MapOptions:
 		TechLevelDropdownLocked: True
 		TechLevel: unrestricted
+		TechLevelDropdownVisible: False
 		ShortGameCheckboxLocked: True
 		ShortGameCheckboxEnabled: False
+		ShortGameCheckboxVisible: False
 	ScriptLobbyDropdown@difficulty:
 		ID: difficulty
 		Label: Difficulty
@@ -53,17 +53,24 @@ World:
 			endless: Endless mode
 		Default: hard
 		DisplayOrder: 5
+	MPStartLocations:
+		SeparateTeamSpawnsCheckboxEnabled: False
+		SeparateTeamSpawnsCheckboxLocked: True
+		SeparateTeamSpawnsCheckboxVisible: False
+	TimeLimitManager:
+		TimeLimitLocked: True
+		TimeLimitDropdownVisible: False
 
 FORTCRATE:
 	Inherits: ^Crate
 	SupportPowerCrateAction@parabombs:
 		SelectionShares: 30
 		Proxy: powerproxy.parabombs
-		Effect: parabombs
+		Sequence: parabombs
 	HealUnitsCrateAction:
 		SelectionShares: 30
-		Notification: heal2.aud
-		Effect: heal
+		Sound: heal2.aud
+		Sequence: heal
 	GiveCashCrateAction:
 		Amount: 400
 		UseCashTick: true
@@ -73,8 +80,8 @@ FORTCRATE:
 		SelectionShares: 10
 	GrantExternalConditionCrateAction@ironcurtain:
 		SelectionShares: 10
-		Effect: invuln
-		Notification: ironcur9.aud
+		Sequence: invuln
+		Sound: ironcur9.aud
 		Condition: invulnerability
 		Duration: 1200
 	ExplodeCrateAction@bigboom:
@@ -93,19 +100,23 @@ Player:
 	Shroud:
 		FogCheckboxLocked: True
 		FogCheckboxEnabled: True
+		FogCheckboxVisible: False
 		ExploredMapCheckboxLocked: True
 		ExploredMapCheckboxEnabled: False
+		ExploredMapCheckboxVisible: False
 	PlayerResources:
-		DefaultCashLocked: True
+		DefaultCashDropdownLocked: True
+		DefaultCashDropdownVisible: False
 		DefaultCash: 50
-	-HackyAI@RushAI:
-	-HackyAI@NormalAI:
-	-HackyAI@NavalAI:
-	-HackyAI@TurtleAI:
-	DummyAI@LonestarAI:
+	-ModularBot@RushAI:
+	-ModularBot@NormalAI:
+	-ModularBot@NavalAI:
+	-ModularBot@TurtleAI:
+	DummyBot@LonestarAI:
 		Name: Lonestar AI
 		Type: lonestar
-
+	LobbyPrerequisiteCheckbox@GLOBALFACTUNDEPLOY:
+		Visible: False
 ^Infantry:
 	Inherits@IC: ^IronCurtainable
 
@@ -141,7 +152,7 @@ MOBILETENT:
 		Type: Light
 	Mobile:
 		Speed: 85
-		Crushes: wall, mine, crate, infantry
+		Locomotor: heavywheeled
 	RevealsShroud:
 		Range: 4c0
 	MustBeDestroyed:
@@ -162,6 +173,8 @@ TENT:
 	Production:
 		Produces: Infantry, Soldier, Dog, Defense
 	-Sellable:
+	Demolishable:
+		-Condition:
 	BaseProvider:
 		Range: 12c0
 	Power:
@@ -198,6 +211,7 @@ PBOX:
 DOG:
 	Buildable:
 		Prerequisites: barracks
+		BuildAtProductionType: Soldier
 	Valued:
 		Cost: 20
 
@@ -305,8 +319,6 @@ ARTY:
 V2RL:
 	Health:
 		HP: 10000
-	ReloadAmmoPool:
-		Delay: 280
 
 4TNK:
 	Health:
@@ -411,6 +423,6 @@ TSLA:
 	Buildable:
 		Prerequisites: ~disabled
 
-HIJACKER:
+THF:
 	Buildable:
 		Prerequisites: ~disabled

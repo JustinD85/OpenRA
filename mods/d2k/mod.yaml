@@ -1,6 +1,8 @@
 Metadata:
 	Title: Dune 2000
 	Version: {DEV_VERSION}
+	Website: https://www.openra.net
+	WebIcon32: https://www.openra.net/images/icons/d2k_32x32.png
 
 PackageFormats: D2kSoundResources
 
@@ -74,16 +76,17 @@ ChromeLayout:
 	common|chrome/ingame-infoobjectives.yaml
 	d2k|chrome/ingame-infostats.yaml
 	common|chrome/ingame-observer.yaml
-	common|chrome/ingame-observerstats.yaml
 	d2k|chrome/ingame-player.yaml
 	common|chrome/ingame-perf.yaml
 	common|chrome/ingame-debug.yaml
+	common|chrome/ingame-debuginfo.yaml
 	common|chrome/ingame-infochat.yaml
 	d2k|chrome/mainmenu.yaml
 	common|chrome/settings.yaml
 	common|chrome/credits.yaml
 	common|chrome/lobby.yaml
 	common|chrome/lobby-mappreview.yaml
+	common|chrome/playerprofile.yaml
 	d2k|chrome/lobby-players.yaml
 	common|chrome/lobby-options.yaml
 	common|chrome/lobby-music.yaml
@@ -104,6 +107,8 @@ ChromeLayout:
 	common|chrome/confirmation-dialogs.yaml
 	common|chrome/editor.yaml
 	common|chrome/replaybrowser.yaml
+	common|chrome/gamesave-browser.yaml
+	common|chrome/gamesave-loading.yaml
 
 Weapons:
 	d2k|weapons/debris.yaml
@@ -147,30 +152,38 @@ ChromeMetrics:
 	d2k|metrics.yaml
 
 Fonts:
-	Regular:
-		Font: common|FreeSans.ttf
-		Size:14
-	Bold:
-		Font: common|FreeSansBold.ttf
-		Size:14
-	Title:
-		Font: d2k|Dune2k.ttf
-		Size:32
-	MediumBold:
-		Font: common|FreeSansBold.ttf
-		Size:18
-	BigBold:
-		Font: common|FreeSansBold.ttf
-		Size:24
-	Small:
-		Font: common|FreeSans.ttf
-		Size:12
 	Tiny:
 		Font: common|FreeSans.ttf
-		Size:10
+		Size: 10
+		Ascender: 8
 	TinyBold:
 		Font: common|FreeSansBold.ttf
-		Size:10
+		Size: 10
+		Ascender: 8
+	Small:
+		Font: common|FreeSans.ttf
+		Size: 12
+		Ascender: 9
+	Regular:
+		Font: common|FreeSans.ttf
+		Size: 14
+		Ascender: 11
+	Bold:
+		Font: common|FreeSansBold.ttf
+		Size: 14
+		Ascender: 11
+	MediumBold:
+		Font: common|FreeSansBold.ttf
+		Size: 18
+		Ascender: 14
+	BigBold:
+		Font: common|FreeSansBold.ttf
+		Size: 24
+		Ascender: 18
+	Title:
+		Font: d2k|Dune2k.ttf
+		Size: 32
+		Ascender: 23
 
 Missions:
 	d2k|missions.yaml
@@ -186,6 +199,10 @@ SpriteSequenceFormat: DefaultSpriteSequence
 ModelSequenceFormat: PlaceholderModelSequence
 
 GameSpeeds:
+	slowest:
+		Name: Slowest
+		Timestep: 80
+		OrderLatency: 2
 	slower:
 		Name: Slower
 		Timestep: 50
@@ -208,6 +225,7 @@ GameSpeeds:
 		OrderLatency: 6
 
 ColorValidator:
+	TeamColorPresets: ffc9ca, f53333, ffae00, fff830, 87f506, f872ad, da06f3, ddb8ff, def7b2, 39c46f, 200738, 280df6, 2f86f2, 76d2f8, 498221, 000000
 
 ModContent:
 	InstallPromptMessage: Dune 2000 requires artwork and audio from the original game.\n\nQuick Install will automatically download this content (without\nmusic or videos) from an online mirror of the game files.\n\nAdvanced Install includes options for copying the music, videos,\nand other content from an original game disc.

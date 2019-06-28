@@ -16,6 +16,8 @@ GAWALL:
 		CrushClasses: heavywall
 	LineBuild:
 		NodeTypes: wall, turret
+	Replaceable:
+		Types: GDIGate, GDITower
 
 GAGATE_A:
 	Inherits: ^Gate_A
@@ -25,6 +27,8 @@ GAGATE_A:
 		Prerequisites: gapile, ~structures.gdi, ~techlevel.low
 	Tooltip:
 		Name: GDI Gate
+	Replacement:
+		ReplaceableTypes: GDIGate
 
 GAGATE_B:
 	Inherits: ^Gate_B
@@ -34,6 +38,8 @@ GAGATE_B:
 		Prerequisites: gapile, ~structures.gdi, ~techlevel.low
 	Tooltip:
 		Name: GDI Gate
+	Replacement:
+		ReplaceableTypes: GDIGate
 
 GACTWR:
 	Inherits: ^Defense
@@ -51,7 +57,6 @@ GACTWR:
 		BuildPaletteOrder: 70
 		Prerequisites: gapile, ~structures.gdi, ~techlevel.low
 		Description: Modular tower for base defenses.
-	Building:
 	Selectable:
 		Bounds: 48, 36, 0, -6
 		DecorationBounds: 48, 48, 0, -12
@@ -64,23 +69,23 @@ GACTWR:
 	BodyOrientation:
 		QuantizedFacings: 32
 	DetectCloaked:
-		RequiresCondition: !empdisable && (tower.vulcan || tower.rocket || tower.sam)
+		RequiresCondition: !empdisable && !disabled && (tower.vulcan || tower.rocket || tower.sam)
 	Turreted:
 		TurnSpeed: 10
 		InitialFacing: 224
 	AttackTurreted:
-		RequiresCondition: tower.vulcan || tower.rocket || tower.sam
-		PauseOnCondition: empdisable
+		RequiresCondition: !build-incomplete && (tower.vulcan || tower.rocket || tower.sam)
+		PauseOnCondition: empdisable || disabled
 	WithSpriteTurret@VULC:
-		RequiresCondition: tower.vulcan
+		RequiresCondition: !build-incomplete && tower.vulcan
 		Recoils: false
 		Sequence: turret-vulcan
 	WithSpriteTurret@ROCKET:
-		RequiresCondition: tower.rocket
+		RequiresCondition: !build-incomplete && tower.rocket
 		Recoils: false
 		Sequence: turret-rocket
 	WithSpriteTurret@SAM:
-		RequiresCondition: tower.sam
+		RequiresCondition: !build-incomplete && tower.sam
 		Recoils: false
 		Sequence: turret-sam
 	Armament@VULCPRIMARY:
@@ -107,27 +112,34 @@ GACTWR:
 		Weapon: RedEye2
 		LocalOffset: 543,0,1697
 	WithMuzzleOverlay:
-		RequiresCondition: tower.vulcan
+		RequiresCondition: !build-incomplete && tower.vulcan
 	WithIdleOverlay@LIGHTS:
-		RequiresCondition: !disabled
+		RequiresCondition: !build-incomplete && !disabled
 		Sequence: idle-lights
 	LineBuildNode:
 		Types: turret
 	Power@base:
+		RequiresCondition: !disabled
 		Amount: -10
 	Power@turrets:
-		RequiresCondition: (tower.vulcan || tower.rocket || tower.sam)
+		RequiresCondition: !disabled && (tower.vulcan || tower.rocket || tower.sam)
 		Amount: -20
 	Power@samextra:
-		RequiresCondition: tower.sam
+		RequiresCondition: !disabled && tower.sam
 		Amount: -10
 	Pluggable:
 		Conditions:
 			tower.vulcan: tower.vulcan
 			tower.rocket: tower.rocket
 			tower.sam: tower.sam
+		Requirements:
+			tower.vulcan: !build-incomplete && !tower.vulcan && !tower.rocket && !tower.sam
+			tower.rocket: !build-incomplete && !tower.rocket && !tower.vulcan && !tower.sam
+			tower.sam: !build-incomplete && !tower.vulcan && !tower.rocket && !tower.sam
 	ProvidesPrerequisite@buildingname:
 	SelectionDecorations:
+	Replacement:
+		ReplaceableTypes: GDITower
 
 GAVULC:
 	Inherits: ^BuildingPlug

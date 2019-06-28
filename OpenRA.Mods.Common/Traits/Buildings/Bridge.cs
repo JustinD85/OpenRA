@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,7 +11,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Effects;
 using OpenRA.GameRules;
@@ -41,10 +40,14 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int[] NorthOffset = null;
 		public readonly int[] SouthOffset = null;
 
+		[WeaponReference]
 		[Desc("The name of the weapon to use when demolishing the bridge")]
-		[WeaponReference] public readonly string DemolishWeapon = "Demolish";
+		public readonly string DemolishWeapon = "Demolish";
 
 		public WeaponInfo DemolishWeaponInfo { get; private set; }
+
+		[Desc("Types of damage that this bridge causes to units over/in path of it while being destroyed/repaired. Leave empty for no damage types.")]
+		public readonly BitSet<DamageType> DamageTypes = default(BitSet<DamageType>);
 
 		public object Create(ActorInitializer init) { return new Bridge(init.Self, this); }
 
@@ -240,8 +243,8 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			foreach (var c in footprint.Keys)
 				foreach (var a in self.World.ActorMap.GetActorsAt(c))
-					if (a.Info.HasTraitInfo<IPositionableInfo>() && !a.Trait<IPositionable>().CanEnterCell(c))
-						a.Kill(self);
+					if (a.Info.HasTraitInfo<IPositionableInfo>() && !a.Trait<IPositionable>().CanExistInCell(c))
+						a.Kill(self, info.DamageTypes);
 		}
 
 		bool NeighbourIsDeadShore(Bridge neighbour)
@@ -375,7 +378,6 @@ namespace OpenRA.Mods.Common.Traits
 				// Use .FromPos since this actor is killed. Cannot use Target.FromActor
 				info.DemolishWeaponInfo.Impact(Target.FromPos(self.CenterPosition), saboteur, Enumerable.Empty<int>());
 
-				self.World.WorldActor.Trait<ScreenShaker>().AddEffect(15, self.CenterPosition, 6);
 				self.Kill(saboteur);
 			});
 

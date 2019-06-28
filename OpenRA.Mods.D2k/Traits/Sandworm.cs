@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -12,6 +12,7 @@
 using System;
 using System.Linq;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.D2k.Traits
@@ -37,7 +38,7 @@ namespace OpenRA.Mods.D2k.Traits
 	{
 		public readonly SandwormInfo WormInfo;
 
-		readonly WormManager manager;
+		readonly ActorSpawnManager manager;
 		readonly Mobile mobile;
 		readonly AttackBase attackTrait;
 
@@ -54,7 +55,7 @@ namespace OpenRA.Mods.D2k.Traits
 			WormInfo = info;
 			mobile = self.Trait<Mobile>();
 			attackTrait = self.Trait<AttackBase>();
-			manager = self.World.WorldActor.Trait<WormManager>();
+			manager = self.World.WorldActor.Trait<ActorSpawnManager>();
 		}
 
 		public override void DoAction(Actor self, CPos targetCell)
@@ -66,7 +67,7 @@ namespace OpenRA.Mods.D2k.Traits
 			if (IsMovingTowardTarget)
 				return;
 
-			self.QueueActivity(mobile.MoveWithinRange(Target.FromCell(self.World, targetCell, SubCell.Any), WDist.FromCells(1)));
+			self.QueueActivity(mobile.MoveWithinRange(Target.FromCell(self.World, targetCell, SubCell.Any), WDist.FromCells(1), targetLineColor: Color.Red));
 		}
 
 		void ITick.Tick(Actor self)
@@ -140,7 +141,7 @@ namespace OpenRA.Mods.D2k.Traits
 			if (disposed)
 				return;
 
-			manager.DecreaseWormCount();
+			manager.DecreaseActorCount();
 			disposed = true;
 		}
 	}

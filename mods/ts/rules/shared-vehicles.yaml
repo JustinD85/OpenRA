@@ -18,6 +18,7 @@ MCV:
 	Armor:
 		Type: Heavy
 	Mobile:
+		PauseOnCondition: empdisable || being-captured
 		Speed: 42
 	RevealsShroud:
 		RequiresCondition: !inside-tunnel
@@ -27,6 +28,7 @@ MCV:
 		RequiredForShortGame: true
 	BaseBuilding:
 	Transforms:
+		PauseOnCondition: empdisable || being-captured
 		IntoActor: gacnst
 		Offset: -1,-1
 		Facing: 96
@@ -67,18 +69,9 @@ HARV:
 		SearchFromOrderRadius: 18
 		HarvestVoice: Attack
 		DeliverVoice: Move
+		EmptyCondition: no-tiberium
 	Mobile:
 		Speed: 71
-		Crushes: wall, crate
-		TerrainSpeeds:
-			Clear: 90
-			Rough: 70
-			Road: 100
-			Bridge: 100
-			Beach: 70
-			Tiberium: 80
-			BlueTiberium: 80
-			Veins: 80
 	Health:
 		HP: 100000
 	SelfHealing:
@@ -95,6 +88,7 @@ HARV:
 	-WithVoxelBody:
 	WithVoxelUnloadBody:
 	Explodes:
+		RequiresCondition: !no-tiberium
 		Weapon: TiberiumExplosion
 	WithHarvestOverlay:
 		LocalOffset: 543,0,0
@@ -132,7 +126,8 @@ LPST:
 	Mobile:
 		Speed: 85
 		TurnSpeed: 5
-		RequiresCondition: !empdisable && undeployed
+		PauseOnCondition: empdisable || being-captured
+		RequireForceMoveCondition: !undeployed
 	RevealsShroud:
 		RequiresCondition: !inside-tunnel && undeployed
 		Range: 10c0
@@ -150,14 +145,22 @@ LPST:
 			gdi: lpst.gdi
 			nod: lpst.nod
 	GrantConditionOnDeploy:
+		PauseOnCondition: empdisable || being-captured
 		DeployedCondition: deployed
 		UndeployedCondition: undeployed
+		UndeployOnMove: true
 		Facing: 160
 		AllowedTerrainTypes: Clear, Road, DirtRoad, Rough
-		DeploySound: place2.aud
-		UndeploySound: clicky1.aud
+		DeploySounds: place2.aud
+		UndeploySounds: clicky1.aud
+		Voice: Move
+	EntersTunnels:
+		RequireForceMoveCondition: !undeployed
+	Repairable:
+		RequireForceMoveCondition: !undeployed
+	Passenger:
+		RequireForceMoveCondition: !undeployed
 	WithVoxelBody:
-		Image: lpst
 		RequiresCondition: undeployed
 	WithSpriteBody@deployed:
 		RequiresCondition: !undeployed && real-actor

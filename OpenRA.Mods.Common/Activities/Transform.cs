@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,7 +9,7 @@
  */
 #endregion
 
-using System.Linq;
+using System;
 using OpenRA.Activities;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Mods.Common.Traits.Render;
@@ -37,15 +37,15 @@ namespace OpenRA.Mods.Common.Activities
 		protected override void OnFirstRun(Actor self)
 		{
 			if (self.Info.HasTraitInfo<IFacingInfo>())
-				QueueChild(new Turn(self, Facing));
+				QueueChild(self, new Turn(self, Facing));
 
 			if (self.Info.HasTraitInfo<AircraftInfo>())
-				QueueChild(new HeliLand(self, true));
+				QueueChild(self, new Land(self));
 		}
 
 		public override Activity Tick(Actor self)
 		{
-			if (IsCanceled)
+			if (IsCanceling)
 				return NextActivity;
 
 			if (ChildActivity != null)
@@ -56,8 +56,7 @@ namespace OpenRA.Mods.Common.Activities
 
 			// Prevent deployment in bogus locations
 			var transforms = self.TraitOrDefault<Transforms>();
-			var building = self.TraitOrDefault<Building>();
-			if ((transforms != null && !transforms.CanDeploy()) || (building != null && !building.Lock()))
+			if (transforms != null && !transforms.CanDeploy())
 			{
 				Cancel(self, true);
 				return NextActivity;
@@ -73,7 +72,7 @@ namespace OpenRA.Mods.Common.Activities
 				IsInterruptible = false;
 
 				// Wait forever
-				QueueChild(new WaitFor(() => false));
+				QueueChild(self, new WaitFor(() => false));
 				makeAnimation.Reverse(self, () => DoTransform(self));
 				return this;
 			}
@@ -83,15 +82,19 @@ namespace OpenRA.Mods.Common.Activities
 
 		protected override void OnLastRun(Actor self)
 		{
-			if (!IsCanceled)
+			if (!IsCanceling)
 				DoTransform(self);
 		}
 
 		void DoTransform(Actor self)
 		{
+			// This activity may be buried as a child within one or more parents
+			// We need to consider the top-level activities when transferring orders to the new actor!
+			var currentActivity = self.CurrentActivity;
+
 			self.World.AddFrameEndTask(w =>
 			{
-				if (self.IsDead)
+				if (self.IsDead || self.WillDispose)
 					return;
 
 				foreach (var nt in self.TraitsImplementing<INotifyTransform>())
@@ -119,7 +122,7 @@ namespace OpenRA.Mods.Common.Activities
 				if (Faction != null)
 					init.Add(new FactionInit(Faction));
 
-				var health = self.TraitOrDefault<Health>();
+				var health = self.TraitOrDefault<IHealth>();
 				if (health != null)
 				{
 					// Cast to long to avoid overflow when multiplying by the health
@@ -127,20 +130,55 @@ namespace OpenRA.Mods.Common.Activities
 					init.Add(new HealthInit(newHP));
 				}
 
-				var cargo = self.TraitOrDefault<Cargo>();
-				if (cargo != null)
-					init.Add(new RuntimeCargoInit(cargo.Passengers.ToArray()));
+				foreach (var modifier in self.TraitsImplementing<ITransformActorInitModifier>())
+					modifier.ModifyTransformActorInit(self, init);
 
 				var a = w.CreateActor(ToActor, init);
 				foreach (var nt in self.TraitsImplementing<INotifyTransform>())
 					nt.AfterTransform(a);
 
+				// Use self.CurrentActivity to capture the parent activity if Transform is a child
+				foreach (var transfer in currentActivity.ActivitiesImplementing<IssueOrderAfterTransform>(false))
+				{
+					if (transfer.IsCanceling)
+						continue;
+
+					var order = transfer.IssueOrderForTransformedActor(a);
+					foreach (var t in a.TraitsImplementing<IResolveOrder>())
+						t.ResolveOrder(a, order);
+				}
+
+				self.ReplacedByActor = a;
+
 				if (selected)
-					w.Selection.Add(w, a);
+					w.Selection.Add(a);
 
 				if (controlgroup.HasValue)
 					w.Selection.AddToControlGroup(a, controlgroup.Value);
 			});
+		}
+	}
+
+	class IssueOrderAfterTransform : Activity
+	{
+		readonly string orderString;
+		readonly Target target;
+
+		public IssueOrderAfterTransform(string orderString, Target target)
+		{
+			this.orderString = orderString;
+			this.target = target;
+		}
+
+		public Order IssueOrderForTransformedActor(Actor newActor)
+		{
+			return new Order(orderString, newActor, target, true);
+		}
+
+		public override Activity Tick(Actor self)
+		{
+			// Activity is a placeholder that should never run
+			return NextActivity;
 		}
 	}
 }

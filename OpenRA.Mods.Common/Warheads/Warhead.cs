@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,21 +9,12 @@
  */
 #endregion
 
-using System;
 using System.Collections.Generic;
-using System.Drawing;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Warheads
 {
-	public enum ImpactType
-	{
-		None,
-		Ground,
-		Air,
-		TargetHit
-	}
-
 	public enum ImpactTargetType
 	{
 		NoActor,
@@ -35,10 +26,10 @@ namespace OpenRA.Mods.Common.Warheads
 	public abstract class Warhead : IWarhead
 	{
 		[Desc("What types of targets are affected.")]
-		public readonly HashSet<string> ValidTargets = new HashSet<string> { "Ground", "Water" };
+		public readonly BitSet<TargetableType> ValidTargets = new BitSet<TargetableType>("Ground", "Water");
 
 		[Desc("What types of targets are unaffected.", "Overrules ValidTargets.")]
-		public readonly HashSet<string> InvalidTargets = new HashSet<string>();
+		public readonly BitSet<TargetableType> InvalidTargets;
 
 		[Desc("What diplomatic stances are affected.")]
 		public readonly Stance ValidStances = Stance.Ally | Stance.Neutral | Stance.Enemy;
@@ -54,7 +45,7 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("The color used for this warhead's visualization in the world's `WarheadDebugOverlay` trait.")]
 		public readonly Color DebugOverlayColor = Color.Red;
 
-		public bool IsValidTarget(IEnumerable<string> targetTypes)
+		public bool IsValidTarget(BitSet<TargetableType> targetTypes)
 		{
 			return ValidTargets.Overlaps(targetTypes) && !InvalidTargets.Overlaps(targetTypes);
 		}
@@ -82,6 +73,9 @@ namespace OpenRA.Mods.Common.Warheads
 		/// <summary>Checks if the warhead is valid against (can do something to) the frozen actor.</summary>
 		public bool IsValidAgainst(FrozenActor victim, Actor firedBy)
 		{
+			if (!victim.IsValid)
+				return false;
+
 			// AffectsParent checks do not make sense for FrozenActors, so skip to stance checks
 			var stance = firedBy.Owner.Stances[victim.Owner];
 			if (!ValidStances.HasStance(stance))

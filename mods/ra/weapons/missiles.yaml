@@ -41,7 +41,7 @@
 	Inherits: ^AntiGroundMissile
 	ValidTargets: Air
 	Warhead@3Eff: CreateEffect
-		VictimScanRadius: 0
+		ImpactActors: false
 
 Maverick:
 	Inherits: ^AntiGroundMissile
@@ -53,7 +53,7 @@ Maverick:
 	BurstDelays: 7
 	Projectile: Missile
 		Speed: 256
-		Inaccuracy: 512
+		Inaccuracy: 316
 		CruiseAltitude: 2c0
 		RangeLimit: 14c410
 	Warhead@1Dam: SpreadDamage
@@ -121,7 +121,6 @@ MammothTusk:
 	Warhead@1Dam: SpreadDamage
 		Spread: 256
 		Damage: 5000
-		ValidTargets: Air, Infantry
 		Versus:
 			None: 100
 			Light: 60
@@ -152,9 +151,7 @@ Nike:
 		Damage: 5000
 		ValidTargets: Air
 		Versus:
-			None: 90
 			Light: 90
-			Heavy: 50
 	Warhead@3Eff: CreateEffect
 		Explosions: med_explosion_air
 		ImpactSounds: kaboom25.aud
@@ -170,9 +167,7 @@ RedEye:
 		Damage: 4000
 		ValidTargets: Air
 		Versus:
-			Wood: 75
 			Light: 60
-			Heavy: 25
 
 Stinger:
 	Inherits: ^AntiGroundMissile
@@ -248,7 +243,6 @@ TorpTube:
 		Damage: 18000
 		ValidTargets: Water, Underwater, Bridge
 		Versus:
-			None: 30
 			Wood: 75
 			Light: 75
 			Heavy: 100
@@ -274,7 +268,6 @@ TorpTube:
 		Inaccuracy: 0c614
 		HorizontalRateOfTurn: 15
 		RangeLimit: 9c0
-		LaunchAngle: 120
 		Image: MISSILE
 		TrailImage: smokey
 		ContrailLength: 30
@@ -284,7 +277,7 @@ TorpTube:
 		Falloff: 1000, 368, 135, 50, 18, 7, 0
 		Versus:
 			None: 40
-			Wood: 40
+			Wood: 50
 			Light: 30
 			Heavy: 30
 			Concrete: 100
@@ -319,7 +312,7 @@ SubMissileAA:
 
 SCUD:
 	Inherits: ^AntiGroundMissile
-	ReloadDelay: 0
+	ReloadDelay: 240
 	Range: 10c0
 	MinRange: 4c0
 	Report: missile1.aud

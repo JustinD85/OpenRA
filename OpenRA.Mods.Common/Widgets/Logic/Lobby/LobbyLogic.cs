@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,11 +11,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 using OpenRA.Graphics;
 using OpenRA.Network;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 using OpenRA.Widgets;
 
@@ -29,6 +29,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly Action onStart;
 		readonly Action onExit;
 		readonly OrderManager orderManager;
+		readonly WorldRenderer worldRenderer;
 		readonly bool skirmishMode;
 		readonly Ruleset modRules;
 		readonly World shellmapWorld;
@@ -56,11 +57,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		readonly TabCompletionLogic tabCompletion = new TabCompletionLogic();
 
-		readonly LabelWidget chatLabel;
-
 		MapPreview map;
 		bool addBotOnMapLoad;
+		bool disableTeamChat;
 		bool teamChat;
+
+		readonly string chatLineSound = ChromeMetrics.Get<string>("ChatLineSound");
 
 		// Listen for connection failures
 		void ConnectionStateChanged(OrderManager om)
@@ -94,18 +96,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		[ObjectCreator.UseCtor]
 		internal LobbyLogic(Widget widget, ModData modData, WorldRenderer worldRenderer, OrderManager orderManager,
-			Action onExit, Action onStart, bool skirmishMode)
+			Action onExit, Action onStart, bool skirmishMode, Dictionary<string, MiniYaml> logicArgs)
 		{
 			map = MapCache.UnknownMap;
 			lobby = widget;
 			this.modData = modData;
 			this.orderManager = orderManager;
+			this.worldRenderer = worldRenderer;
 			this.onStart = onStart;
 			this.onExit = onExit;
 			this.skirmishMode = skirmishMode;
 
 			// TODO: This needs to be reworked to support per-map tech levels, bots, etc.
-			this.modRules = modData.DefaultRules;
+			modRules = modData.DefaultRules;
 			shellmapWorld = worldRenderer.World;
 
 			services = modData.Manifest.Get<WebServices>();
@@ -124,9 +127,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{
 				{ "orderManager", orderManager },
 				{ "getMap", (Func<MapPreview>)(() => map) },
-				{ "onMouseDown",  (Action<MapPreviewWidget, MapPreview, MouseInput>)((preview, mapPreview, mi) =>
-					LobbyUtils.SelectSpawnPoint(orderManager, preview, mapPreview, mi)) },
-				{ "getSpawnOccupants", (Func<MapPreview, Dictionary<CPos, SpawnOccupant>>)(mapPreview => LobbyUtils.GetSpawnOccupants(orderManager.LobbyInfo, mapPreview)) },
+				{
+					"onMouseDown", (Action<MapPreviewWidget, MapPreview, MouseInput>)((preview, mapPreview, mi) =>
+						LobbyUtils.SelectSpawnPoint(orderManager, preview, mapPreview, mi))
+				},
+				{
+					"getSpawnOccupants", (Func<MapPreview, Dictionary<CPos, SpawnOccupant>>)(mapPreview =>
+						LobbyUtils.GetSpawnOccupants(orderManager.LobbyInfo, mapPreview))
+				},
 				{ "showUnoccupiedSpawnpoints", true },
 			});
 
@@ -382,7 +390,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (skirmishMode)
 				disconnectButton.Text = "Back";
 
-			chatLabel = lobby.Get<LabelWidget>("LABEL_CHATTYPE");
+			var chatMode = lobby.Get<ButtonWidget>("CHAT_MODE");
+			chatMode.GetText = () => teamChat ? "Team" : "All";
+			chatMode.OnClick = () => teamChat ^= true;
+			chatMode.IsDisabled = () => disableTeamChat;
+
 			var chatTextField = lobby.Get<TextFieldWidget>("CHAT_TEXTFIELD");
 			chatTextField.MaxLength = UnitOrders.ChatMessageMaxLength;
 
@@ -395,7 +407,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				// Always scroll to bottom when we've typed something
 				lobbyChatPanel.ScrollToBottom();
 
-				orderManager.IssueOrder(Order.Chat(teamChat, chatTextField.Text));
+				var teamNumber = 0U;
+				if (teamChat && orderManager.LocalClient != null)
+					teamNumber = orderManager.LocalClient.IsObserver ? uint.MaxValue : (uint)orderManager.LocalClient.Team;
+
+				orderManager.IssueOrder(Order.Chat(chatTextField.Text, teamNumber));
 				chatTextField.Text = "";
 				return true;
 			};
@@ -431,6 +447,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			// Add a bot on the first lobbyinfo update
 			if (skirmishMode)
 				addBotOnMapLoad = true;
+
+			MiniYaml yaml;
+			if (logicArgs.TryGetValue("ChatLineSound", out yaml))
+				chatLineSound = yaml.Value;
 		}
 
 		bool disposed;
@@ -460,33 +480,30 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				panel = PanelType.Players;
 		}
 
-		void AddChatLine(Color c, string from, string text)
+		void AddChatLine(string name, Color nameColor, string text, Color textColor)
 		{
 			var template = (ContainerWidget)chatTemplate.Clone();
-			LobbyUtils.SetupChatLine(template, c, DateTime.Now, from, text);
+			LobbyUtils.SetupChatLine(template, DateTime.Now, name, nameColor, text, textColor);
 
 			var scrolledToBottom = lobbyChatPanel.ScrolledToBottom;
 			lobbyChatPanel.AddChild(template);
 			if (scrolledToBottom)
 				lobbyChatPanel.ScrollToBottom(smooth: true);
 
-			Game.Sound.PlayNotification(modRules, null, "Sounds", "ChatLine", null);
+			Game.Sound.PlayNotification(modRules, null, "Sounds", chatLineSound, null);
 		}
 
 		bool SwitchTeamChat()
 		{
-			teamChat ^= true;
-			chatLabel.Text = teamChat ? "Team:" : "Chat:";
+			if (!disableTeamChat)
+				teamChat ^= true;
 			return true;
 		}
 
 		void LoadMapPreviewRules(MapPreview map)
 		{
-			new Task(() =>
-			{
-				// Force map rules to be loaded on this background thread
-				map.PreloadRules();
-			}).Start();
+			// Force map rules to be loaded on this background thread
+			new Task(map.PreloadRules).Start();
 		}
 
 		void UpdateCurrentMap()
@@ -538,6 +555,22 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (orderManager.LocalClient == null)
 				return;
 
+			// Check if we are not assigned to any team, and are no spectator
+			// If we are a spectator, check if there are more and enable spectator chat
+			// Otherwise check if our assigned team has more players
+			if (orderManager.LocalClient.Team == 0 && !orderManager.LocalClient.IsObserver)
+				disableTeamChat = true;
+			else if (orderManager.LocalClient.IsObserver)
+				disableTeamChat = !orderManager.LobbyInfo.Clients.Any(c => c != orderManager.LocalClient && c.IsObserver);
+			else
+				disableTeamChat = !orderManager.LobbyInfo.Clients.Any(c =>
+					c != orderManager.LocalClient &&
+					c.Bot == null &&
+					c.Team == orderManager.LocalClient.Team);
+
+			if (disableTeamChat)
+				teamChat = false;
+
 			var isHost = Game.IsHost;
 			var idx = 0;
 			foreach (var kv in orderManager.LobbyInfo.Slots)
@@ -558,7 +591,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						template = emptySlotTemplate.Clone();
 
 					if (isHost)
-						LobbyUtils.SetupEditableSlotWidget(template, slot, client, orderManager, map);
+						LobbyUtils.SetupEditableSlotWidget(template, slot, client, orderManager, worldRenderer, map);
 					else
 						LobbyUtils.SetupSlotWidget(template, slot, client);
 
@@ -574,12 +607,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					if (template == null || template.Id != editablePlayerTemplate.Id)
 						template = editablePlayerTemplate.Clone();
 
-					LobbyUtils.SetupClientWidget(template, client, orderManager, client.Bot == null);
+					LobbyUtils.SetupLatencyWidget(template, client, orderManager);
 
 					if (client.Bot != null)
-						LobbyUtils.SetupEditableSlotWidget(template, slot, client, orderManager, map);
+						LobbyUtils.SetupEditableSlotWidget(template, slot, client, orderManager, worldRenderer, map);
 					else
-						LobbyUtils.SetupEditableNameWidget(template, slot, client, orderManager);
+						LobbyUtils.SetupEditableNameWidget(template, slot, client, orderManager, worldRenderer);
 
 					LobbyUtils.SetupEditableColorWidget(template, slot, client, orderManager, shellmapWorld, colorPreview);
 					LobbyUtils.SetupEditableFactionWidget(template, slot, client, orderManager, factions);
@@ -593,19 +626,20 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					if (template == null || template.Id != nonEditablePlayerTemplate.Id)
 						template = nonEditablePlayerTemplate.Clone();
 
-					LobbyUtils.SetupClientWidget(template, client, orderManager, client.Bot == null);
-					LobbyUtils.SetupNameWidget(template, slot, client);
-					LobbyUtils.SetupKickWidget(template, slot, client, orderManager, lobby,
-						() => panel = PanelType.Kick, () => panel = PanelType.Players);
+					LobbyUtils.SetupLatencyWidget(template, client, orderManager);
 					LobbyUtils.SetupColorWidget(template, slot, client);
 					LobbyUtils.SetupFactionWidget(template, slot, client, factions);
+
 					if (isHost)
 					{
 						LobbyUtils.SetupEditableTeamWidget(template, slot, client, orderManager, map);
 						LobbyUtils.SetupEditableSpawnWidget(template, slot, client, orderManager, map);
+						LobbyUtils.SetupPlayerActionWidget(template, slot, client, orderManager, worldRenderer,
+							lobby, () => panel = PanelType.Kick, () => panel = PanelType.Players);
 					}
 					else
 					{
+						LobbyUtils.SetupNameWidget(template, slot, client, orderManager, worldRenderer);
 						LobbyUtils.SetupTeamWidget(template, slot, client);
 						LobbyUtils.SetupSpawnWidget(template, slot, client);
 					}
@@ -639,10 +673,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					if (template == null || template.Id != editableSpectatorTemplate.Id)
 						template = editableSpectatorTemplate.Clone();
 
-					LobbyUtils.SetupEditableNameWidget(template, null, c, orderManager);
+					LobbyUtils.SetupEditableNameWidget(template, null, c, orderManager, worldRenderer);
 
 					if (client.IsAdmin)
 						LobbyUtils.SetupEditableReadyWidget(template, null, client, orderManager, map);
+					else
+						LobbyUtils.HideReadyWidgets(template);
 				}
 				else
 				{
@@ -650,15 +686,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					if (template == null || template.Id != nonEditableSpectatorTemplate.Id)
 						template = nonEditableSpectatorTemplate.Clone();
 
-					LobbyUtils.SetupNameWidget(template, null, client);
-					LobbyUtils.SetupKickWidget(template, null, client, orderManager, lobby,
-						() => panel = PanelType.Kick, () => panel = PanelType.Players);
+					if (isHost)
+						LobbyUtils.SetupPlayerActionWidget(template, null, client, orderManager, worldRenderer,
+							lobby, () => panel = PanelType.Kick, () => panel = PanelType.Players);
+					else
+						LobbyUtils.SetupNameWidget(template, null, client, orderManager, worldRenderer);
 
 					if (client.IsAdmin)
 						LobbyUtils.SetupReadyWidget(template, null, client);
+					else
+						LobbyUtils.HideReadyWidgets(template);
 				}
 
-				LobbyUtils.SetupClientWidget(template, c, orderManager, true);
+				LobbyUtils.SetupLatencyWidget(template, c, orderManager);
 				template.IsVisible = () => true;
 
 				if (idx >= players.Children.Count)
@@ -708,13 +748,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			Ui.CloseWindow();
 			onStart();
 		}
-
-		class DropDownOption
-		{
-			public string Title;
-			public Func<bool> IsSelected;
-			public Action OnClick;
-		}
 	}
 
 	public class LobbyFaction
@@ -723,5 +756,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		public string Name;
 		public string Description;
 		public string Side;
+	}
+
+	class DropDownOption
+	{
+		public string Title;
+		public Func<bool> IsSelected = () => false;
+		public Action OnClick;
 	}
 }

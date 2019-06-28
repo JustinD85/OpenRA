@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -12,7 +12,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Mods.Common.Effects;
-using OpenRA.Mods.Common.Warheads;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits.Render
@@ -20,11 +20,13 @@ namespace OpenRA.Mods.Common.Traits.Render
 	[Desc("This actor has a death animation.")]
 	public class WithDeathAnimationInfo : ConditionalTraitInfo, Requires<RenderSpritesInfo>
 	{
+		[SequenceReference(null, true)]
 		[Desc("Sequence prefix to play when this actor is killed by a warhead.")]
-		[SequenceReference(null, true)] public readonly string DeathSequence = "die";
+		public readonly string DeathSequence = "die";
 
+		[PaletteReference("DeathPaletteIsPlayerPalette")]
 		[Desc("The palette used for `DeathSequence`.")]
-		[PaletteReference("DeathPaletteIsPlayerPalette")] public readonly string DeathSequencePalette = "player";
+		public readonly string DeathSequencePalette = "player";
 
 		[Desc("Custom death animation palette is a player palette BaseName")]
 		public readonly bool DeathPaletteIsPlayerPalette = true;
@@ -32,11 +34,13 @@ namespace OpenRA.Mods.Common.Traits.Render
 		[Desc("Should DeathType-specific sequences be used (sequence name = DeathSequence + DeathType).")]
 		public readonly bool UseDeathTypeSuffix = true; // TODO: check the complete sequence with lint rules
 
+		[SequenceReference]
 		[Desc("Sequence to play when this actor is crushed.")]
-		[SequenceReference] public readonly string CrushedSequence = null;
+		public readonly string CrushedSequence = null;
 
+		[PaletteReference("CrushedPaletteIsPlayerPalette")]
 		[Desc("The palette used for `CrushedSequence`.")]
-		[PaletteReference("CrushedPaletteIsPlayerPalette")] public readonly string CrushedSequencePalette = "effect";
+		public readonly string CrushedSequencePalette = "effect";
 
 		[Desc("Custom crushed animation palette is a player palette BaseName")]
 		public readonly bool CrushedPaletteIsPlayerPalette = false;
@@ -45,8 +49,9 @@ namespace OpenRA.Mods.Common.Traits.Render
 			"Is only used if UseDeathTypeSuffix is `True`.")]
 		public readonly Dictionary<string, string[]> DeathTypes = new Dictionary<string, string[]>();
 
+		[SequenceReference]
 		[Desc("Sequence to use when the actor is killed by some non-standard means (e.g. suicide).")]
-		[SequenceReference] public readonly string FallbackSequence = null;
+		public readonly string FallbackSequence = null;
 
 		public override object Create(ActorInitializer init) { return new WithDeathAnimation(init.Self, this); }
 	}
@@ -62,7 +67,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 			rs = self.Trait<RenderSprites>();
 		}
 
-		public void Killed(Actor self, AttackInfo e)
+		void INotifyKilled.Killed(Actor self, AttackInfo e)
 		{
 			// Actors with Crushable trait will spawn CrushedSequence.
 			if (crushed || IsTraitDisabled)
@@ -73,7 +78,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 				palette += self.Owner.InternalName;
 
 			// Killed by some non-standard means
-			if (e.Damage.DamageTypes.Count == 0)
+			if (e.Damage.DamageTypes.IsEmpty)
 			{
 				if (Info.FallbackSequence != null)
 					SpawnDeathAnimation(self, self.CenterPosition, rs.GetImage(self), Info.FallbackSequence, palette);
@@ -99,7 +104,7 @@ namespace OpenRA.Mods.Common.Traits.Render
 			self.World.AddFrameEndTask(w => w.Add(new SpriteEffect(pos, w, image, sequence, palette)));
 		}
 
-		void INotifyCrushed.OnCrush(Actor self, Actor crusher, HashSet<string> crushClasses)
+		void INotifyCrushed.OnCrush(Actor self, Actor crusher, BitSet<CrushClass> crushClasses)
 		{
 			crushed = true;
 
@@ -113,6 +118,6 @@ namespace OpenRA.Mods.Common.Traits.Render
 			SpawnDeathAnimation(self, self.CenterPosition, rs.GetImage(self), Info.CrushedSequence, crushPalette);
 		}
 
-		void INotifyCrushed.WarnCrush(Actor self, Actor crusher, HashSet<string> crushClasses) { }
+		void INotifyCrushed.WarnCrush(Actor self, Actor crusher, BitSet<CrushClass> crushClasses) { }
 	}
 }

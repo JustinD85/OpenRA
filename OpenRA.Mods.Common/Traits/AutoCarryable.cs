@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,8 +11,6 @@
 
 using System.Linq;
 using OpenRA.Activities;
-using OpenRA.Mods.Common.Activities;
-using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
@@ -25,7 +23,7 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new AutoCarryable(init.Self, this); }
 	}
 
-	public class AutoCarryable : Carryable, INotifyHarvesterAction, ICallForTransport
+	public class AutoCarryable : Carryable, ICallForTransport
 	{
 		readonly AutoCarryableInfo info;
 		Activity afterLandActivity;
@@ -37,21 +35,6 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		public WDist MinimumDistance { get { return info.MinDistance; } }
-
-		void INotifyHarvesterAction.MovingToResources(Actor self, CPos targetCell, Activity next) { RequestTransport(self, targetCell, next); }
-
-		void INotifyHarvesterAction.MovingToRefinery(Actor self, Actor refineryActor, Activity next)
-		{
-			var iao = refineryActor.Trait<IAcceptResources>();
-			RequestTransport(self, refineryActor.Location + iao.DeliveryOffset, next);
-		}
-
-		void INotifyHarvesterAction.MovementCancelled(Actor self) { MovementCancelled(self); }
-
-		// We do not handle Harvested notification
-		void INotifyHarvesterAction.Harvested(Actor self, ResourceType resource) { }
-		void INotifyHarvesterAction.Docked() { }
-		void INotifyHarvesterAction.Undocked() { }
 
 		// No longer want to be carried
 		void ICallForTransport.MovementCancelled(Actor self) { MovementCancelled(self); }
@@ -103,15 +86,7 @@ namespace OpenRA.Mods.Common.Traits
 			Destination = null;
 
 			if (afterLandActivity != null)
-			{
-				// HACK: Harvesters need special treatment to avoid getting stuck on resource fields,
-				// so if a Harvester's afterLandActivity is not DeliverResources, queue a new FindResources activity
-				var findResources = self.Info.HasTraitInfo<HarvesterInfo>() && !(afterLandActivity is DeliverResources);
-				if (findResources)
-					self.QueueActivity(new FindResources(self));
-				else
-					self.QueueActivity(false, afterLandActivity);
-			}
+				self.QueueActivity(false, afterLandActivity);
 
 			base.Detached(self);
 		}

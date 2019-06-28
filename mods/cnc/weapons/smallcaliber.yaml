@@ -26,10 +26,10 @@ Sniper:
 			Wood: 50
 			Light: 70
 			Heavy: 30
-		DamageTypes: Prone50Percent, TriggerProne, BulletDeath
+		DamageTypes: Prone50Percent, TriggerProne, RippedApartDeath
 	Warhead@2Eff: CreateEffect
 		Explosions: piffs
-		VictimScanRadius: 0
+		ImpactActors: false
 		ValidTargets: Ground, Water, Air
 
 HighV:
@@ -70,6 +70,7 @@ HeliAGGun:
 			Wood: 50
 			Light: 75
 			Heavy: 25
+		DamageTypes: Prone80Percent, TriggerProne, RippedApartDeath
 
 HeliAAGun:
 	Inherits: HeliAGGun
@@ -105,6 +106,7 @@ Pistol:
 			Wood: 30
 			Light: 40
 			Heavy: 10
+		DamageTypes: Prone50Percent, TriggerProne, BulletDeath
 	Warhead@2Eff: CreateEffect
 		Explosions: piff
 
@@ -133,7 +135,7 @@ APCGun:
 	Range: 5c0
 	Report: gun20.aud
 	Projectile: Bullet
-		Speed: 1c682
+		Speed: 900
 	Warhead@1Dam: SpreadDamage
 		Spread: 128
 		Damage: 2000
@@ -144,12 +146,12 @@ APCGun:
 			Heavy: 25
 		DamageTypes: Prone50Percent, TriggerProne, DefaultDeath
 	Warhead@2Eff: CreateEffect
-		Explosions: small_poof
+		Explosions: small_frag
 		ValidTargets: Ground, Water, Air
 
 APCGun.AA:
 	Inherits: APCGun
-	Range: 7c0
+	Range: 6c0
 	ValidTargets: Air
 	Projectile: Bullet
 		Speed: 2c0
@@ -162,4 +164,4 @@ APCGun.AA:
 			Light: 125
 			Heavy: 60
 	Warhead@2Eff: CreateEffect
-		Explosions: small_frag
+		Explosions: small_poof

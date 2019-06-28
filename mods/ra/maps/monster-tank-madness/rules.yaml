@@ -131,7 +131,6 @@ PBOX:
 		Type: Concrete
 	Mobile:
 		Speed: 42
-		Crushes: wall, mine, crate, infantry
 	RevealsShroud:
 		Range: 6c0
 		RequiresCondition: !friendly
@@ -184,6 +183,9 @@ PBOX:
 		HP: 200000
 	RenderSprites:
 		Image: 4TNK
+	-Capturable:
+	-TransformOnCapture:
+	-InfiltrateForTransform:
 
 DOME.NoInfiltrate:
 	Inherits: DOME
@@ -332,7 +334,7 @@ SHOK:
 	Buildable:
 		Prerequisites: ~disabled
 
-HIJACKER:
+THF:
 	Buildable:
 		Prerequisites: ~disabled
 

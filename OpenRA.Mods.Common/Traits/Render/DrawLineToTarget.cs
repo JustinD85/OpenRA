@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,8 +10,8 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Drawing;
 using OpenRA.Graphics;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -23,7 +23,7 @@ namespace OpenRA.Mods.Common.Traits
 		public virtual object Create(ActorInitializer init) { return new DrawLineToTarget(init.Self, this); }
 	}
 
-	public class DrawLineToTarget : IRenderAboveShroudWhenSelected, INotifySelected, INotifyBecomingIdle
+	public class DrawLineToTarget : IRenderAboveShroudWhenSelected, INotifySelected, INotifyBecomingIdle, INotifyOwnerChanged
 	{
 		readonly DrawLineToTargetInfo info;
 		List<Target> targets;
@@ -85,10 +85,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool IRenderAboveShroudWhenSelected.SpatiallyPartitionable { get { return false; } }
 
-		void INotifyBecomingIdle.OnBecomingIdle(Actor a)
+		void INotifyBecomingIdle.OnBecomingIdle(Actor self)
 		{
-			if (a.IsIdle)
-				targets = null;
+			targets = null;
+		}
+
+		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
+		{
+			targets = null;
 		}
 	}
 
@@ -108,36 +112,15 @@ namespace OpenRA.Mods.Common.Traits
 
 		public static void SetTargetLine(this Actor self, Target target, Color color, bool display)
 		{
-			if (self.Owner != self.World.LocalPlayer)
+			if (!self.Owner.IsAlliedWith(self.World.LocalPlayer))
 				return;
 
-			self.World.AddFrameEndTask(w =>
-			{
-				if (self.Disposed)
-					return;
-
-				var line = self.TraitOrDefault<DrawLineToTarget>();
-				if (line != null)
-					line.SetTarget(self, target, color, display);
-			});
-		}
-
-		public static void SetTargetLine(this Actor self, FrozenActor target, Color color, bool display)
-		{
-			if (self.Owner != self.World.LocalPlayer)
+			if (self.Disposed)
 				return;
 
-			self.World.AddFrameEndTask(w =>
-			{
-				if (self.Disposed)
-					return;
-
-				target.Flash();
-
-				var line = self.TraitOrDefault<DrawLineToTarget>();
-				if (line != null)
-					line.SetTarget(self, Target.FromPos(target.CenterPosition), color, display);
-			});
+			var line = self.TraitOrDefault<DrawLineToTarget>();
+			if (line != null)
+				line.SetTarget(self, target, color, display);
 		}
 	}
 }

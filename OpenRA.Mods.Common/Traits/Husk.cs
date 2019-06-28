@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -18,7 +18,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Spawns remains of a husk actor with the correct facing.")]
-	public class HuskInfo : ITraitInfo, IOccupySpaceInfo, IFacingInfo, IActorPreviewInitInfo
+	public class HuskInfo : ITraitInfo, IPositionableInfo, IFacingInfo, IActorPreviewInitInfo
 	{
 		public readonly HashSet<string> AllowedTerrain = new HashSet<string>();
 
@@ -41,6 +41,13 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		bool IOccupySpaceInfo.SharesCell { get { return false; } }
+
+		public bool CanEnterCell(World world, Actor self, CPos cell, Actor ignoreActor = null, bool checkTransientActors = true)
+		{
+			// IPositionable*Info*.CanEnterCell is only ever used for things like exiting production facilities,
+			// all places relevant for husks check IPositionable.CanEnterCell instead, so we can safely set this to true.
+			return true;
+		}
 	}
 
 	public class Husk : IPositionable, IFacing, ISync, INotifyCreated, INotifyAddedToWorld, INotifyRemovedFromWorld,
@@ -53,9 +60,14 @@ namespace OpenRA.Mods.Common.Traits
 		readonly int dragSpeed;
 		readonly WPos finalPosition;
 
-		[Sync] public CPos TopLeft { get; private set; }
-		[Sync] public WPos CenterPosition { get; private set; }
-		[Sync] public int Facing { get; set; }
+		[Sync]
+		public CPos TopLeft { get; private set; }
+
+		[Sync]
+		public WPos CenterPosition { get; private set; }
+
+		[Sync]
+		public int Facing { get; set; }
 
 		public int TurnSpeed { get { return 0; } }
 
@@ -81,15 +93,23 @@ namespace OpenRA.Mods.Common.Traits
 				self.QueueActivity(new Drag(self, CenterPosition, finalPosition, distance / dragSpeed));
 		}
 
+		public bool CanExistInCell(CPos cell)
+		{
+			if (!self.World.Map.Contains(cell))
+				return false;
+
+			if (!info.AllowedTerrain.Contains(self.World.Map.GetTerrainInfo(cell).Type))
+				return false;
+
+			return true;
+		}
+
 		public Pair<CPos, SubCell>[] OccupiedCells() { return new[] { Pair.New(TopLeft, SubCell.FullCell) }; }
 		public bool IsLeavingCell(CPos location, SubCell subCell = SubCell.Any) { return false; }
 		public SubCell GetValidSubCell(SubCell preferred = SubCell.Any) { return SubCell.FullCell; }
 		public SubCell GetAvailableSubCell(CPos cell, SubCell preferredSubCell = SubCell.Any, Actor ignoreActor = null, bool checkTransientActors = true)
 		{
-			if (!self.World.Map.Contains(cell))
-				return SubCell.Invalid;
-
-			if (!info.AllowedTerrain.Contains(self.World.Map.GetTerrainInfo(cell).Type))
+			if (!CanExistInCell(cell))
 				return SubCell.Invalid;
 
 			if (!checkTransientActors)
@@ -144,7 +164,9 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class HuskSpeedInit : IActorInit<int>
 	{
-		[FieldFromYamlKey] readonly int value = 0;
+		[FieldFromYamlKey]
+		readonly int value = 0;
+
 		public HuskSpeedInit() { }
 		public HuskSpeedInit(int init) { value = init; }
 		public int Value(World world) { return value; }

@@ -1,6 +1,7 @@
 E3:
 	Inherits: ^Soldier
 	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
 	Inherits@AUTOTARGET: ^AutoTargetAllAssaultMove
 	Buildable:
 		Queue: Infantry
@@ -11,6 +12,8 @@ E3:
 		Cost: 250
 	Tooltip:
 		Name: Rocket Infantry
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Voiced:
 		VoiceSet: Rocket
 	Health:
@@ -34,6 +37,7 @@ E3:
 CYBORG:
 	Inherits: ^Cyborg
 	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Armor:
 		Type: Light
@@ -41,6 +45,8 @@ CYBORG:
 		Cost: 650
 	Tooltip:
 		Name: Cyborg Infantry
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Infantry
 		BuildPaletteOrder: 60
@@ -69,6 +75,7 @@ CYBORG:
 CYC2:
 	Inherits: ^Cyborg
 	Inherits@EXPERIENCE: ^GainsExperience
+	Inherits@EXPHOSPITAL: ^InfantryExperienceHospitalOverrides
 	Inherits@AUTOTARGET: ^AutoTargetGroundAssaultMove
 	Armor:
 		Type: Heavy
@@ -76,6 +83,8 @@ CYC2:
 		Cost: 2000
 	Tooltip:
 		Name: Cyborg Commando
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Infantry
 		BuildPaletteOrder: 100
@@ -110,12 +119,14 @@ MHIJACK:
 		Queue: Infantry
 		BuildPaletteOrder: 80
 		Prerequisites: ~nahand, natmpl, ~techlevel.high
+		BuildLimit: 1
 		Description: Hijacks enemy vehicles.\n  Unarmed
 	Valued:
 		Cost: 1850
 	Tooltip:
 		Name: Mutant Hijacker
-		BuildLimit: 1
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Voiced:
 		VoiceSet: Hijacker
 	Health:
@@ -123,6 +134,7 @@ MHIJACK:
 	Mobile:
 		Speed: 99
 	-Crushable:
+	CaptureManager:
 	Captures:
 		CaptureTypes: Vehicle
 		PlayerExperience: 50

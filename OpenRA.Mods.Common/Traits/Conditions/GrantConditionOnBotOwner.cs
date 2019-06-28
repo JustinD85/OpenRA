@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,7 +9,6 @@
  */
 #endregion
 
-using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Traits;
 
@@ -44,9 +43,16 @@ namespace OpenRA.Mods.Common.Traits
 
 		void INotifyCreated.Created(Actor self)
 		{
-			conditionManager = self.TraitOrDefault<ConditionManager>();
-			if (conditionManager != null && self.Owner.IsBot && info.Bots.Contains(self.Owner.BotType))
-				conditionToken = conditionManager.GrantCondition(self, info.Condition);
+			// Special case handling is required for the Player actor.
+			// Created is called before Player.IsBot is set, so we
+			// must use a different method to enable this trait if
+			// it's defined on the PlayerActor.
+			self.World.AddFrameEndTask(w =>
+			{
+				conditionManager = self.TraitOrDefault<ConditionManager>();
+				if (conditionManager != null && self.Owner.IsBot && info.Bots.Contains(self.Owner.BotType))
+					conditionToken = conditionManager.GrantCondition(self, info.Condition);
+			});
 		}
 
 		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)

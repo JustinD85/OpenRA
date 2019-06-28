@@ -38,12 +38,14 @@ Also thanks to:
     * Bellator
     * Biofreak
     * Braxton Williams (Buddytex)
+    * Brendan Gluth (Mechanical_Man)
     * Bryan Wilbur
     * Bugra Cuhadaroglu (BugraC)
     * Christer Ulfsparre (Holloweye)
     * Chris Grant (Unit158)
     * clem
     * Cody Brittain (Generalcamo)
+    * Constantin Helmig (CH4Code)
     * D2k Sardaukar
     * D'Arcy Rush (r34ch)
     * Daniel Derejvanik (Harisson)
@@ -52,6 +54,7 @@ Also thanks to:
     * David Russell (DavidARussell)
     * DeadlySurprise
     * Dmitri Suvorov (suvjunmd)
+    * dtluna
     * Erasmus Schroder (rasco)
     * Eric Bajumpaa (SteelPhase)
     * Evgeniy Sergeev (evgeniysergeev)
@@ -59,11 +62,10 @@ Also thanks to:
     * Florian Wiesbauer (FiveAces)
     * Frank Razenberg (zzattack)
     * Gareth Needham (Ripley`)
-    * Glen Anderson (GlenLife)
+    * Glen Anderson (glen7)
     * Glenn Martin Jensen (Baxxster)
     * Gordon Martin (Happy0)
     * Guido Lipke (LipkeGu)
-    * Gyula Zimmermann (Graion Dilach)
     * Hervé Matysiak (Herve-M)
     * Huw Pascoe
     * Ian T. Jacobsen (Smilex)
@@ -79,6 +81,7 @@ Also thanks to:
     * Jefri Sevkin (Arular)
     * Jes
     * Joakim Lindberg (booom3)
+    * Joe Alam (joealam)
     * John Turner (whinis)
     * Jonas A. Lind (SoScared)
     * Joppy Furr
@@ -86,10 +89,12 @@ Also thanks to:
     * Kenny Hoxworth (hoxworth)
     * Kevin Azzam (ChaoticMind)
     * Krishnakanth Mallik
+    * Kyle Smith (Smitty)
     * Kyrre Soerensen (zypres)
     * Lawrence Wang
     * Lesueur Benjamin (Valkirie)
     * Maarten Meuris (Nyerguds)
+    * Manuel Geiger (Ectras)
     * Mark Olson (markolson)
     * Markus Hartung (hartmark)
     * Matija Hustic (matija-hustic)
@@ -98,11 +103,15 @@ Also thanks to:
     * Matthijs Benschop (Nerdie)
     * Max621
     * Max Ugrumov (katzsmile)
+    * Mazar Farran (mazarf)
     * Michael Rätzel
     * Michael Silber (frühstück)
     * Michael Sztolcman (s1w_)
+    * Mike Gagné (AngryBirdz)
+    * Muh
     * Mustafa Alperen Seki (MustaphaTR)
     * Neil Shivkar (havok13888)
+    * Nikolay Fomin (netnazgul)
     * Nooze
     * Nukem
     * Okunev Yu Dmitry (xaionaro)
@@ -130,6 +139,7 @@ Also thanks to:
     * Teemu Nieminen (Temeez)
     * Tim Mylemans (gecko)
     * Tirili
+    * Tomas Einarsson (Mesacer)
     * Tristan Keating (Kilkakon)
     * Tristan Mühlbacher (MicroBit)
     * UnknownProgrammer
@@ -152,9 +162,6 @@ the Apache 2.0 license.
 
 Using GeoLite2 data created by MaxMind and
 distributed under the CC BY-SA 3.0 license.
-
-Using SharpFont created by Robert Rouhani and
-distributed under the MIT license.
 
 Using SDL2-CS and OpenAL-CS created by Ethan
 Lee and released under the zlib license.

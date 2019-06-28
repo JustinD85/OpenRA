@@ -6,6 +6,8 @@ BOAT:
 		Cost: 300
 	Tooltip:
 		Name: Gunboat
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 70000
 	Armor:
@@ -58,20 +60,11 @@ LST:
 		BuildPaletteOrder: 1000
 		Prerequisites: ~disabled
 	Mobile:
-		Crushes: crate
-		TerrainSpeeds:
-			Clear: 100
-			Rough: 100
-			Road: 100
-			Water: 100
-			Tiberium: 100
-			BlueTiberium: 100
-			Beach: 100
-			River: 100
+		Locomotor: lcraft
 		InitialFacing: 0
 		TurnSpeed: 4
 		Speed: 142
-		RequiresCondition: !notmobile
+		PauseOnCondition: notmobile
 	Health:
 		HP: 40000
 	Armor:
@@ -79,6 +72,8 @@ LST:
 	RevealsShroud:
 		Range: 7c0
 	WithFacingSpriteBody:
+	Selectable:
+		Bounds: 48,48
 	WithRoof:
 	WithCargo:
 		DisplayTypes: Infantry, Vehicle

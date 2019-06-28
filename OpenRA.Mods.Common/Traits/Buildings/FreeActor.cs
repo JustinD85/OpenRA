@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -16,9 +16,10 @@ namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Player receives a unit for free once the building is placed. This also works for structures.",
 		"If you want more than one unit to appear copy this section and assign IDs like FreeActor@2, ...")]
-	public class FreeActorInfo : ITraitInfo
+	public class FreeActorInfo : ConditionalTraitInfo
 	{
-		[ActorReference, FieldLoader.Require]
+		[ActorReference]
+		[FieldLoader.Require]
 		[Desc("Name of the actor.")]
 		public readonly string Actor = null;
 
@@ -28,24 +29,37 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Which direction the unit should face.")]
 		public readonly int Facing = 0;
 
-		public virtual object Create(ActorInitializer init) { return new FreeActor(init, this); }
+		[Desc("Whether another actor should spawn upon re-enabling the trait.")]
+		public readonly bool AllowRespawn = false;
+
+		public override object Create(ActorInitializer init) { return new FreeActor(init, this); }
 	}
 
-	public class FreeActor
+	public class FreeActor : ConditionalTrait<FreeActorInfo>
 	{
+		bool allowSpawn;
+
 		public FreeActor(ActorInitializer init, FreeActorInfo info)
+			: base(info)
 		{
-			if (init.Contains<FreeActorInit>() && !init.Get<FreeActorInit>().ActorValue)
+			allowSpawn = !init.Contains<FreeActorInit>() || init.Get<FreeActorInit>().ActorValue;
+		}
+
+		protected override void TraitEnabled(Actor self)
+		{
+			if (!allowSpawn)
 				return;
 
-			init.Self.World.AddFrameEndTask(w =>
+			allowSpawn = Info.AllowRespawn;
+
+			self.World.AddFrameEndTask(w =>
 			{
-				w.CreateActor(info.Actor, new TypeDictionary
+				w.CreateActor(Info.Actor, new TypeDictionary
 				{
-					new ParentActorInit(init.Self),
-					new LocationInit(init.Self.Location + info.SpawnOffset),
-					new OwnerInit(init.Self.Owner),
-					new FacingInit(info.Facing),
+					new ParentActorInit(self),
+					new LocationInit(self.Location + Info.SpawnOffset),
+					new OwnerInit(self.Owner),
+					new FacingInit(Info.Facing),
 				});
 			});
 		}

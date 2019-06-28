@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,11 +10,9 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Activities;
 using OpenRA.GameRules;
-using OpenRA.Mods.Cnc.Activities;
 using OpenRA.Mods.Common;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Orders;
@@ -27,33 +25,52 @@ namespace OpenRA.Mods.Cnc.Traits
 {
 	class MadTankInfo : ITraitInfo, IRulesetLoaded, Requires<ExplodesInfo>, Requires<WithFacingSpriteBodyInfo>
 	{
-		[SequenceReference] public readonly string ThumpSequence = "piston";
+		[SequenceReference]
+		public readonly string ThumpSequence = "piston";
+
 		public readonly int ThumpInterval = 8;
+
 		[WeaponReference]
 		public readonly string ThumpDamageWeapon = "MADTankThump";
+
 		public readonly int ThumpShakeIntensity = 3;
+
 		public readonly float2 ThumpShakeMultiplier = new float2(1, 0);
+
 		public readonly int ThumpShakeTime = 10;
 
 		[Desc("Measured in ticks.")]
 		public readonly int ChargeDelay = 96;
+
 		public readonly string ChargeSound = "madchrg2.aud";
 
 		[Desc("Measured in ticks.")]
 		public readonly int DetonationDelay = 42;
+
 		public readonly string DetonationSound = "madexplo.aud";
+
 		[WeaponReference]
 		public readonly string DetonationWeapon = "MADTankDetonate";
 
 		[ActorReference]
 		public readonly string DriverActor = "e1";
 
-		[VoiceReference] public readonly string Voice = "Action";
+		[VoiceReference]
+		public readonly string Voice = "Action";
+
+		[GrantedConditionReference]
+		[Desc("The condition to grant to self while deployed.")]
+		public readonly string DeployedCondition = null;
 
 		public WeaponInfo ThumpDamageWeaponInfo { get; private set; }
+
 		public WeaponInfo DetonationWeaponInfo { get; private set; }
 
+		[Desc("Types of damage that this trait causes to self while self-destructing. Leave empty for no damage types.")]
+		public readonly BitSet<DamageType> DamageTypes = default(BitSet<DamageType>);
+
 		public object Create(ActorInitializer init) { return new MadTank(init.Self, this); }
+
 		public void RulesetLoaded(Ruleset rules, ActorInfo ai)
 		{
 			WeaponInfo thumpDamageWeapon;
@@ -72,12 +89,13 @@ namespace OpenRA.Mods.Cnc.Traits
 		}
 	}
 
-	class MadTank : IIssueOrder, IResolveOrder, IOrderVoice, ITick, IPreventsTeleport, IIssueDeployOrder
+	class MadTank : INotifyCreated, IIssueOrder, IResolveOrder, IOrderVoice, ITick, IIssueDeployOrder
 	{
 		readonly Actor self;
 		readonly MadTankInfo info;
 		readonly WithFacingSpriteBody wfsb;
 		readonly ScreenShaker screenShaker;
+		ConditionManager conditionManager;
 		bool deployed;
 		int tick;
 
@@ -87,6 +105,11 @@ namespace OpenRA.Mods.Cnc.Traits
 			this.info = info;
 			wfsb = self.Trait<WithFacingSpriteBody>();
 			screenShaker = self.World.WorldActor.Trait<ScreenShaker>();
+		}
+
+		void INotifyCreated.Created(Actor self)
+		{
+			conditionManager = self.TraitOrDefault<ConditionManager>();
 		}
 
 		void ITick.Tick(Actor self)
@@ -111,7 +134,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		{
 			get
 			{
-				yield return new TargetTypeOrderTargeter(new HashSet<string> { "DetonateAttack" }, "DetonateAttack", 5, "attack", true, false) { ForceAttack = false };
+				yield return new TargetTypeOrderTargeter(new BitSet<TargetableType>("DetonateAttack"), "DetonateAttack", 5, "attack", true, false) { ForceAttack = false };
 				yield return new DeployOrderTargeter("Detonate", 5);
 			}
 		}
@@ -124,10 +147,12 @@ namespace OpenRA.Mods.Cnc.Traits
 			return new Order(order.OrderID, self, target, queued);
 		}
 
-		Order IIssueDeployOrder.IssueDeployOrder(Actor self)
+		Order IIssueDeployOrder.IssueDeployOrder(Actor self, bool queued)
 		{
-			return new Order("Detonate", self, false);
+			return new Order("Detonate", self, queued);
 		}
+
+		bool IIssueDeployOrder.CanIssueDeployOrder(Actor self) { return true; }
 
 		string IOrderVoice.VoicePhraseForOrder(Actor self, Order order)
 		{
@@ -144,7 +169,7 @@ namespace OpenRA.Mods.Cnc.Traits
 					info.DetonationWeaponInfo.Impact(Target.FromPos(self.CenterPosition), self, Enumerable.Empty<int>());
 				}
 
-				self.Kill(self);
+				self.Kill(self, info.DamageTypes);
 			});
 		}
 
@@ -160,12 +185,13 @@ namespace OpenRA.Mods.Cnc.Traits
 				driverMobile.Nudge(driver, driver, true);
 		}
 
-		public bool PreventsTeleport(Actor self) { return deployed; }
-
 		void StartDetonationSequence()
 		{
 			if (deployed)
 				return;
+
+			if (conditionManager != null && !string.IsNullOrEmpty(info.DeployedCondition))
+				conditionManager.GrantCondition(self, info.DeployedCondition);
 
 			self.World.AddFrameEndTask(w => EjectDriver());
 			if (info.ThumpSequence != null)
@@ -182,20 +208,18 @@ namespace OpenRA.Mods.Cnc.Traits
 		{
 			if (order.OrderString == "DetonateAttack")
 			{
-				var target = self.ResolveFrozenActorOrder(order, Color.Red);
-				if (target.Type != TargetType.Actor)
-					return;
-
 				if (!order.Queued)
 					self.CancelActivity();
 
-				self.SetTargetLine(target, Color.Red);
-				self.QueueActivity(new MoveAdjacentTo(self, target));
+				self.SetTargetLine(order.Target, Color.Red);
+				self.QueueActivity(new MoveAdjacentTo(self, order.Target, targetLineColor: Color.Red));
 				self.QueueActivity(new CallFunc(StartDetonationSequence));
 			}
 			else if (order.OrderString == "Detonate")
 			{
-				self.CancelActivity();
+				if (!order.Queued)
+					self.CancelActivity();
+
 				self.QueueActivity(new CallFunc(StartDetonationSequence));
 			}
 		}

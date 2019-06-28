@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,7 +9,6 @@
  */
 #endregion
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Traits;
@@ -20,7 +19,9 @@ namespace OpenRA.Mods.Common.Traits
 	public class PowerManagerInfo : ITraitInfo, Requires<DeveloperModeInfo>
 	{
 		public readonly int AdviceInterval = 250;
-		public readonly string SpeechNotification = "LowPower";
+
+		[NotificationReference("Speech")]
+		public readonly string SpeechNotification = null;
 
 		public object Create(ActorInitializer init) { return new PowerManager(init.Self, this); }
 	}
@@ -33,10 +34,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		readonly Dictionary<Actor, int> powerDrain = new Dictionary<Actor, int>();
 
-		[Sync] int totalProvided;
+		[Sync]
+		int totalProvided;
+
 		public int PowerProvided { get { return totalProvided; } }
 
-		[Sync] int totalDrained;
+		[Sync]
+		int totalDrained;
+
 		public int PowerDrained { get { return totalDrained; } }
 
 		public int ExcessPower { get { return totalProvided - totalDrained; } }
@@ -70,7 +75,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			int old;
 			powerDrain.TryGetValue(a, out old); // old is 0 if a is not in powerDrain
-			var amount = a.TraitsImplementing<Power>().Where(t => !t.IsTraitDisabled).Aggregate(0, (v, p) => v + p.GetEnabledPower());
+			var amount = a.TraitsImplementing<Power>().Where(t => !t.IsTraitDisabled).Sum(p => p.GetEnabledPower());
 			powerDrain[a] = amount;
 			if (amount == old || devMode.UnlimitedPower)
 				return;

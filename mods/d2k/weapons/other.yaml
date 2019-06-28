@@ -46,6 +46,8 @@ Sound:
 			cy: 20
 			harvester: 50
 		DamageTypes: Prone50Percent, TriggerProne, SoundDeath
+	Warhead@3Concrete: DamagesConcrete
+		Damage: 1720
 
 WormJaw:
 	ReloadDelay: 10
@@ -85,7 +87,9 @@ OrniBomb:
 	Warhead@3Eff: CreateEffect
 		Explosions: large_explosion
 		ImpactSounds: EXPLSML4.WAV
-		VictimScanRadius: 0
+		ImpactActors: false
+	Warhead@4Concrete: DamagesConcrete
+		Damage: 6750
 
 Crush:
 	Warhead@1Dam: SpreadDamage
@@ -100,36 +104,50 @@ Demolish:
 	Warhead@2Eff: CreateEffect
 		Explosions: building
 		ImpactSounds: EXPLLG2.WAV
-		VictimScanRadius: 0
+		ImpactActors: false
 
-Atomic:
+DeathHand:
+	Warhead@Cluster: FireCluster
+		Weapon: DeathHandCluster
+		RandomClusterCount: 14
+		Dimensions: 3,3
+		Footprint: xxx xXx xxx
+	Warhead@2Eff: CreateEffect
+		Explosions: nuke
+		ImpactSounds: EXPLLG2.WAV
+		ImpactActors: false
+
+DeathHandCluster:
+	Inherits: Debris2
+	Range: 7c0
+	Projectile: Bullet
+		Image: 120mm
+		TrailImage: small_trail2
+		Speed: 96
+		LaunchAngle: 0, 32
+		Inaccuracy: 1c512
+		BounceCount: 0
 	Warhead@1Dam: SpreadDamage
-		Spread: 1c0
-		Falloff: 200, 100, 50, 25, 12, 0
-		Damage: 27000	##225 in vanilla but of course is a cluster bomb instead, so damage spread out
+		Damage: 4500
 		Versus:
 			none: 90
 			wall: 50
-			building: 75
+			building: 100
 			wood: 60
 			light: 60
 			heavy: 60
 			invulnerable: 0
 			cy: 25
 			harvester: 60
-		DamageTypes: Prone50Percent, TriggerProne, SoundDeath
-	Warhead@2Eff: CreateEffect
-		Explosions: nuke
-		ImpactSounds: EXPLLG2.WAV
-		VictimScanRadius: 0
-
-CrateNuke:
-	Inherits: Atomic
-	Warhead@1Dam: SpreadDamage
-		Spread: 320
-		Falloff: 100, 60, 30, 15, 0
-		Damage: 5000
-		AffectsParent: true
+		DamageTypes: Prone50Percent, TriggerProne, ExplosionDeath
+	Warhead@2Smu: LeaveSmudge
+		SmudgeType: SandCrater, RockCrater
+		InvalidTargets: Vehicle, Structure
+	Warhead@3Eff: CreateEffect
+		Explosions: large_explosion
+		ImpactSounds: EXPLSML4.WAV
+	Warhead@2Concrete: DamagesConcrete
+		Damage: 4500
 
 CrateExplosion:
 	Warhead@1Dam: SpreadDamage
@@ -151,36 +169,38 @@ CrateExplosion:
 	Warhead@2Eff: CreateEffect
 		Explosions: large_explosion
 		ImpactSounds: EXPLSML4.WAV
-		VictimScanRadius: 0
+		ImpactActors: false
+	Warhead@2Concrete: DamagesConcrete
+		Damage: 4500
 
 UnitExplodeSmall:
 	Warhead@1Eff: CreateEffect
 		Explosions: self_destruct
 		ImpactSounds: EXPLSML1.WAV
-		VictimScanRadius: 0
+		ImpactActors: false
 
 UnitExplodeMed:
 	Warhead@1Eff: CreateEffect
 		Explosions: building
 		ImpactSounds: EXPLSML2.WAV
-		VictimScanRadius: 0
+		ImpactActors: false
 
 UnitExplodeLarge:
 	Warhead@1Eff: CreateEffect
 		Explosions: large_explosion
 		ImpactSounds: EXPLLG2.WAV
-		VictimScanRadius: 0
+		ImpactActors: false
 
 BuildingExplode:
 	Warhead@1Eff: CreateEffect
 		Explosions: building, self_destruct, large_explosion
-		VictimScanRadius: 0
+		ImpactActors: false
 
 WallExplode:
 	Warhead@1Eff: CreateEffect
 		Explosions: wall_explosion
 		ImpactSounds: EXPLHG1.WAV
-		VictimScanRadius: 0
+		ImpactActors: false
 
 grenade:
 	ReloadDelay: 50
@@ -211,7 +231,9 @@ grenade:
 	Warhead@3Eff: CreateEffect
 		Explosions: med_explosion
 		ImpactSounds: EXPLMD2.WAV
-		VictimScanRadius: 0
+		ImpactActors: false
+	Warhead@4Concrete: DamagesConcrete
+		Damage: 1875
 
 GrenDeath:
 	Warhead@1Dam: SpreadDamage
@@ -232,7 +254,9 @@ GrenDeath:
 	Warhead@3Eff: CreateEffect
 		Explosions: building
 		ImpactSounds: EXPLSML4.WAV
-		VictimScanRadius: 0
+		ImpactActors: false
+	Warhead@4Concrete: DamagesConcrete
+		Damage: 1875
 
 SardDeath:
 	Warhead@1Dam: SpreadDamage
@@ -254,7 +278,9 @@ SardDeath:
 	Warhead@3Eff: CreateEffect
 		Explosions: small_napalm
 		ImpactSounds: EXPLSML2.WAV
-		VictimScanRadius: 0
+		ImpactActors: false
+	Warhead@4Concrete: DamagesConcrete
+		Damage: 450
 
 SpiceExplosion:
 	Projectile: Bullet
@@ -284,7 +310,7 @@ SpiceExplosion:
 		Size: 1
 	Warhead@3Eff: CreateEffect
 		Explosions: med_explosion
-		VictimScanRadius: 0
+		ImpactActors: false
 
 BloomExplosion:
 	Report: EXPLMD1.WAV
@@ -323,3 +349,5 @@ PlasmaExplosion:
 		SmudgeType: SandCrater
 	Warhead@3Eff: CreateEffect
 		Explosions: devastator
+	Warhead@4Concrete: DamagesConcrete
+		Damage: 20000

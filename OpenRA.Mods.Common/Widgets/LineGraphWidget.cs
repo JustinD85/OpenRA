@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,8 +11,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
+using OpenRA.Primitives;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets
@@ -148,19 +148,19 @@ namespace OpenRA.Mods.Common.Widgets
 			for (int n = pointStart, x = 0; n <= pointEnd; n++, x += xStep)
 			{
 				cr.DrawLine(origin + new float2(x, 0), origin + new float2(x, -5), 1, Color.White);
-				tiny.DrawText(GetXAxisValueFormat().F(n), origin + new float2(x, 2), Color.White);
+				tiny.DrawTextWithShadow(GetXAxisValueFormat().F(n), origin + new float2(x, 2), Color.White, BackgroundColorDark, BackgroundColorLight, 1);
 			}
 
-			bold.DrawText(GetXAxisLabel(), origin + new float2(width / 2, 20), Color.White);
+			bold.DrawTextWithShadow(GetXAxisLabel(), origin + new float2(width / 2, 20), Color.White, BackgroundColorDark, BackgroundColorLight, 1);
 
 			for (var y = GetDisplayFirstYAxisValue() ? 0 : yStep; y <= height; y += yStep)
 			{
 				var yValue = y / scale;
 				cr.DrawLine(origin + new float2(width - 5, -y), origin + new float2(width, -y), 1, Color.White);
-				tiny.DrawText(GetYAxisValueFormat().F(yValue), origin + new float2(width + 2, -y), Color.White);
+				tiny.DrawTextWithShadow(GetYAxisValueFormat().F(yValue), origin + new float2(width + 2, -y), Color.White, BackgroundColorDark, BackgroundColorLight, 1);
 			}
 
-			bold.DrawText(GetYAxisLabel(), origin + new float2(width + 40, -(height / 2)), Color.White);
+			bold.DrawTextWithShadow(GetYAxisLabel(), origin + new float2(width + 40, -(height / 2)), Color.White, BackgroundColorDark, BackgroundColorLight, 1);
 
 			cr.DrawLine(origin, origin + new float2(width, 0), 1, Color.White);
 			cr.DrawLine(origin, origin + new float2(0, -height), 1, Color.White);

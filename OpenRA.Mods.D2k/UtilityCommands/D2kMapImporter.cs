@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,7 +11,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using OpenRA.Primitives;
@@ -84,7 +83,7 @@ namespace OpenRA.Mods.D2k.UtilityCommands
 			{ 360, Pair.New("light_inf", "Harkonnen") },
 			{ 361, Pair.New("trooper", "Harkonnen") },
 			{ 362, Pair.New("fremen", "Harkonnen") },
-			{ 363, Pair.New("sardaukar", "Harkonnen") },
+			{ 363, Pair.New("mpsardaukar", "Harkonnen") },
 			{ 364, Pair.New("engineer", "Harkonnen") },
 			{ 365, Pair.New("harvester", "Harkonnen") },
 			{ 366, Pair.New("mcv", "Harkonnen") },

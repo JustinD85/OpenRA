@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,8 +10,6 @@
 #endregion
 
 using System;
-using System.Drawing;
-using System.Linq;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Primitives;
 using OpenRA.Traits;
@@ -34,18 +32,11 @@ namespace OpenRA.Mods.Common.Traits
 
 		public string Faction { get; private set; }
 
-		Building building;
-
 		public Production(ActorInitializer init, ProductionInfo info)
 			: base(info)
 		{
 			rp = Exts.Lazy(() => init.Self.IsDead ? null : init.Self.TraitOrDefault<RallyPoint>());
 			Faction = init.Contains<FactionInit>() ? init.Get<FactionInit, string>() : init.Self.Owner.Faction.InternalName;
-		}
-
-		void INotifyCreated.Created(Actor self)
-		{
-			building = self.TraitOrDefault<Building>();
 		}
 
 		public virtual void DoProduction(Actor self, ActorInfo producee, ExitInfo exitinfo, string productionType, TypeDictionary inits)
@@ -59,7 +50,7 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var init in inits)
 				td.Add(init);
 
-			if (self.OccupiesSpace != null)
+			if (exitinfo != null && self.OccupiesSpace != null && producee.HasTraitInfo<IOccupySpaceInfo>())
 			{
 				exit = self.Location + exitinfo.ExitCell;
 				var spawn = self.CenterPosition + exitinfo.SpawnOffset;
@@ -91,7 +82,7 @@ namespace OpenRA.Mods.Common.Traits
 				var newUnit = self.World.CreateActor(producee.Name, td);
 
 				var move = newUnit.TraitOrDefault<IMove>();
-				if (move != null)
+				if (exitinfo != null && move != null)
 				{
 					if (exitinfo.MoveIntoWorld)
 					{
@@ -99,8 +90,7 @@ namespace OpenRA.Mods.Common.Traits
 							newUnit.QueueActivity(new Wait(exitinfo.ExitDelay, false));
 
 						newUnit.QueueActivity(move.MoveIntoWorld(newUnit, exit));
-						newUnit.QueueActivity(new AttackMoveActivity(
-							newUnit, move.MoveTo(exitLocation, 1)));
+						newUnit.QueueActivity(new AttackMoveActivity(newUnit, () => move.MoveTo(exitLocation, 1)));
 					}
 				}
 
@@ -112,34 +102,31 @@ namespace OpenRA.Mods.Common.Traits
 
 				var notifyOthers = self.World.ActorsWithTrait<INotifyOtherProduction>();
 				foreach (var notify in notifyOthers)
-					notify.Trait.UnitProducedByOther(notify.Actor, self, newUnit, productionType);
-
-				foreach (var t in newUnit.TraitsImplementing<INotifyBuildComplete>())
-					t.BuildingComplete(newUnit);
+					notify.Trait.UnitProducedByOther(notify.Actor, self, newUnit, productionType, td);
 			});
 		}
 
-		protected virtual ExitInfo SelectExit(Actor self, ActorInfo producee, string productionType, Func<ExitInfo, bool> p)
+		protected virtual Exit SelectExit(Actor self, ActorInfo producee, string productionType, Func<Exit, bool> p)
 		{
-			return self.RandomExitOrDefault(productionType, p);
+			return self.RandomExitOrDefault(self.World, productionType, p);
 		}
 
-		protected ExitInfo SelectExit(Actor self, ActorInfo producee, string productionType)
+		protected Exit SelectExit(Actor self, ActorInfo producee, string productionType)
 		{
-			return SelectExit(self, producee, productionType, e => CanUseExit(self, producee, e));
+			return SelectExit(self, producee, productionType, e => CanUseExit(self, producee, e.Info));
 		}
 
 		public virtual bool Produce(Actor self, ActorInfo producee, string productionType, TypeDictionary inits)
 		{
-			if (IsTraitDisabled || IsTraitPaused || Reservable.IsReserved(self) || (building != null && building.Locked))
+			if (IsTraitDisabled || IsTraitPaused || Reservable.IsReserved(self))
 				return false;
 
 			// Pick a spawn/exit point pair
 			var exit = SelectExit(self, producee, productionType);
 
-			if (exit != null || self.OccupiesSpace == null)
+			if (exit != null || self.OccupiesSpace == null || !producee.HasTraitInfo<IOccupySpaceInfo>())
 			{
-				DoProduction(self, producee, exit, productionType, inits);
+				DoProduction(self, producee, exit == null ? null : exit.Info, productionType, inits);
 
 				return true;
 			}

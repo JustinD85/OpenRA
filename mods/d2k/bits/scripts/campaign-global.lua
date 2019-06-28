@@ -1,5 +1,5 @@
 --[[
-   Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+   Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
    This file is part of OpenRA, which is free software. It is made
    available to you under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of
@@ -122,6 +122,9 @@ end
 
 DefendActor = function(unit, defendingPlayer, defenderCount)
 	Trigger.OnDamaged(unit, function(self, attacker)
+		if unit.Owner ~= defendingPlayer then
+			return
+		end
 
 		-- Don't try to attack spiceblooms
 		if attacker and attacker.Type == "spicebloom" then
@@ -194,7 +197,7 @@ ProduceUnits = function(player, factory, delay, toBuild, attackSize, attackThres
 	end
 
 	if HoldProduction[player] then
-		Trigger.AfterDelay(DateTime.Minutes(1), function() ProduceUnits(player, factory, delay, toBuild, attackSize, attackThresholdSize) end)
+		Trigger.AfterDelay(DateTime.Seconds(10), function() ProduceUnits(player, factory, delay, toBuild, attackSize, attackThresholdSize) end)
 		return
 	end
 

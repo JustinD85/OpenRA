@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,10 +11,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
 using OpenRA.Graphics;
-using OpenRA.Mods.Common;
 using OpenRA.Mods.Common.Graphics;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Mods.Common.Traits.Render;
@@ -51,18 +48,15 @@ namespace OpenRA.Mods.Cnc.Traits.Render
 	{
 		readonly WithVoxelWalkerBodyInfo info;
 		readonly IMove movement;
-		readonly IFacing facing;
 		readonly ModelAnimation modelAnimation;
 		readonly RenderVoxels rv;
 
-		int oldFacing;
 		uint tick, frame, frames;
 
 		public WithVoxelWalkerBody(Actor self, WithVoxelWalkerBodyInfo info)
 		{
 			this.info = info;
 			movement = self.Trait<IMove>();
-			facing = self.Trait<IFacing>();
 
 			var body = self.Trait<BodyOrientation>();
 			rv = self.Trait<RenderVoxels>();
@@ -78,9 +72,9 @@ namespace OpenRA.Mods.Cnc.Traits.Render
 
 		void ITick.Tick(Actor self)
 		{
-			if (movement.IsMoving || facing.Facing != oldFacing)
+			if (movement.CurrentMovementTypes.HasFlag(MovementType.Horizontal)
+				|| movement.CurrentMovementTypes.HasFlag(MovementType.Turn))
 				tick++;
-			oldFacing = facing.Facing;
 
 			if (tick < info.TickRate)
 				return;
@@ -103,7 +97,9 @@ namespace OpenRA.Mods.Cnc.Traits.Render
 
 	public class BodyAnimationFrameInit : IActorInit<uint>
 	{
-		[FieldFromYamlKey] readonly uint value = 0;
+		[FieldFromYamlKey]
+		readonly uint value = 0;
+
 		public BodyAnimationFrameInit() { }
 		public BodyAnimationFrameInit(uint init) { value = init; }
 		public uint Value(World world) { return value; }

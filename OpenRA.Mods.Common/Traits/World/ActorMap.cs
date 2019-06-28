@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -12,8 +12,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -48,8 +48,8 @@ namespace OpenRA.Mods.Common.Traits
 
 			readonly Action<Actor> onActorEntered;
 			readonly Action<Actor> onActorExited;
-
-			IEnumerable<Actor> currentActors = Enumerable.Empty<Actor>();
+			readonly HashSet<Actor> oldActors = new HashSet<Actor>();
+			readonly HashSet<Actor> currentActors = new HashSet<Actor>();
 
 			public CellTrigger(CPos[] footprint, Action<Actor> onActorEntered, Action<Actor> onActorExited)
 			{
@@ -67,19 +67,22 @@ namespace OpenRA.Mods.Common.Traits
 				if (!Dirty)
 					return;
 
-				var oldActors = currentActors;
-				currentActors = Footprint.SelectMany(actorMap.GetActorsAt).ToList();
+				// PERF: Reuse collection to avoid allocations.
+				oldActors.Clear();
+				oldActors.UnionWith(currentActors);
 
-				var entered = currentActors.Except(oldActors);
-				var exited = oldActors.Except(currentActors);
+				currentActors.Clear();
+				currentActors.UnionWith(Footprint.SelectMany(actorMap.GetActorsAt));
 
 				if (onActorEntered != null)
-					foreach (var a in entered)
-						onActorEntered(a);
+					foreach (var a in currentActors)
+						if (!oldActors.Contains(a))
+							onActorEntered(a);
 
 				if (onActorExited != null)
-					foreach (var a in exited)
-						onActorExited(a);
+					foreach (var a in oldActors)
+						if (!currentActors.Contains(a))
+							onActorExited(a);
 
 				Dirty = false;
 			}
@@ -94,12 +97,12 @@ namespace OpenRA.Mods.Common.Traits
 
 			readonly Action<Actor> onActorEntered;
 			readonly Action<Actor> onActorExited;
+			readonly HashSet<Actor> oldActors = new HashSet<Actor>();
+			readonly HashSet<Actor> currentActors = new HashSet<Actor>();
 
 			WPos position;
 			WDist range;
 			WDist vRange;
-
-			IEnumerable<Actor> currentActors = Enumerable.Empty<Actor>();
 
 			public ProximityTrigger(WPos pos, WDist range, WDist vRange, Action<Actor> onActorEntered, Action<Actor> onActorExited)
 			{
@@ -128,23 +131,26 @@ namespace OpenRA.Mods.Common.Traits
 				if (!Dirty)
 					return;
 
-				var oldActors = currentActors;
-				var delta = new WVec(range, range, WDist.Zero);
-				currentActors = am.ActorsInBox(position - delta, position + delta)
-					.Where(a => (a.CenterPosition - position).HorizontalLengthSquared < range.LengthSquared
-						&& (vRange.Length == 0 || (a.World.Map.DistanceAboveTerrain(a.CenterPosition).LengthSquared <= vRange.LengthSquared)))
-					.ToList();
+				// PERF: Reuse collection to avoid allocations.
+				oldActors.Clear();
+				oldActors.UnionWith(currentActors);
 
-				var entered = currentActors.Except(oldActors);
-				var exited = oldActors.Except(currentActors);
+				var delta = new WVec(range, range, WDist.Zero);
+				currentActors.Clear();
+				currentActors.UnionWith(
+					am.ActorsInBox(position - delta, position + delta)
+					.Where(a => (a.CenterPosition - position).HorizontalLengthSquared < range.LengthSquared
+						&& (vRange.Length == 0 || (a.World.Map.DistanceAboveTerrain(a.CenterPosition).LengthSquared <= vRange.LengthSquared))));
 
 				if (onActorEntered != null)
-					foreach (var a in entered)
-						onActorEntered(a);
+					foreach (var a in currentActors)
+						if (!oldActors.Contains(a))
+							onActorEntered(a);
 
 				if (onActorExited != null)
-					foreach (var a in exited)
-						onActorExited(a);
+					foreach (var a in oldActors)
+						if (!currentActors.Contains(a))
+							onActorExited(a);
 
 				Dirty = false;
 			}
@@ -177,6 +183,9 @@ namespace OpenRA.Mods.Common.Traits
 		readonly HashSet<Actor> removeActorPosition = new HashSet<Actor>();
 		readonly Predicate<Actor> actorShouldBeRemoved;
 
+		public WDist LargestActorRadius { get; private set; }
+		public WDist LargestBlockingActorRadius { get; private set; }
+
 		public ActorMap(World world, ActorMapInfo info)
 		{
 			this.info = info;
@@ -192,6 +201,10 @@ namespace OpenRA.Mods.Common.Traits
 
 			// PERF: Cache this delegate so it does not have to be allocated repeatedly.
 			actorShouldBeRemoved = removeActorPosition.Contains;
+
+			LargestActorRadius = map.Rules.Actors.SelectMany(a => a.Value.TraitInfos<HitShapeInfo>()).Max(h => h.Type.OuterRadius);
+			var blockers = map.Rules.Actors.Where(a => a.Value.HasTraitInfo<IBlocksProjectilesInfo>());
+			LargestBlockingActorRadius = blockers.Any() ? blockers.SelectMany(a => a.Value.TraitInfos<HitShapeInfo>()).Max(h => h.Type.OuterRadius) : WDist.Zero;
 		}
 
 		void INotifyCreated.Created(Actor self)
@@ -284,8 +297,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (!AnyActorsAt(cell))
 				return map.Grid.DefaultSubCell;
 
-			for (var i = (int)SubCell.First; i < map.Grid.SubCellOffsets.Length; i++)
-				if (i != (int)preferredSubCell && !AnyActorsAt(cell, (SubCell)i, checkIfBlocker))
+			for (var i = (byte)SubCell.First; i < map.Grid.SubCellOffsets.Length; i++)
+				if (i != (byte)preferredSubCell && !AnyActorsAt(cell, (SubCell)i, checkIfBlocker))
 					return (SubCell)i;
 			return SubCell.Invalid;
 		}
@@ -385,11 +398,10 @@ namespace OpenRA.Mods.Common.Traits
 			if (influenceNode == null)
 				return;
 
+			RemoveInfluenceInner(ref influenceNode.Next, toRemove);
+
 			if (influenceNode.Actor == toRemove)
 				influenceNode = influenceNode.Next;
-
-			if (influenceNode != null)
-				RemoveInfluenceInner(ref influenceNode.Next, toRemove);
 		}
 
 		void ITick.Tick(Actor self)

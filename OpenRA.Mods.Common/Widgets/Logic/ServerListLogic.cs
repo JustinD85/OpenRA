@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,12 +11,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using System.Net;
 using System.Text;
 using BeaconLib;
 using OpenRA.Network;
+using OpenRA.Primitives;
 using OpenRA.Server;
 using OpenRA.Traits;
 using OpenRA.Widgets;
@@ -235,9 +235,22 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (mapTitle != null)
 			{
 				var font = Game.Renderer.Fonts[mapTitle.Font];
-				var title = new CachedTransform<MapPreview, string>(m => m == null ? "No Server Selected" :
+				var title = new CachedTransform<MapPreview, string>(m =>
 					WidgetUtils.TruncateText(m.Title, mapTitle.Bounds.Width, font));
-				mapTitle.GetText = () => title.Update(currentMap);
+
+				mapTitle.GetText = () =>
+				{
+					if (currentMap == null)
+						return "No Server Selected";
+
+					if (currentMap.Status == MapStatus.Searching)
+						return "Searching...";
+
+					if (currentMap.Class == MapClassification.Unknown)
+						return "Unknown Map";
+
+					return title.Update(currentMap);
+				};
 			}
 
 			var ip = widget.GetOrNull<LabelWidget>("SELECTED_IP");
@@ -262,7 +275,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				modVersion.GetColor = () => currentServer.IsCompatible ? modVersion.TextColor : incompatibleVersionColor;
 
 				var font = Game.Renderer.Fonts[modVersion.Font];
-				var version = new CachedTransform<GameServer, string>(s => WidgetUtils.TruncateText(s.ModLabel, mapTitle.Bounds.Width, font));
+				var version = new CachedTransform<GameServer, string>(s => WidgetUtils.TruncateText(s.ModLabel, modVersion.Bounds.Width, font));
 				modVersion.GetText = () => version.Update(currentServer);
 			}
 
@@ -339,24 +352,30 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				var lanGames = new List<GameServer>();
 				foreach (var bl in lanGameLocations)
 				{
-					var game = MiniYaml.FromString(bl.Data)[0].Value;
-					var idNode = game.Nodes.FirstOrDefault(n => n.Key == "Id");
-
-					// Skip beacons created by this instance and replace Id by expected int value
-					if (idNode != null && idNode.Value.Value != Platform.SessionGUID.ToString())
+					try
 					{
-						idNode.Value.Value = "-1";
+						if (string.IsNullOrEmpty(bl.Data))
+							continue;
 
-						// Rewrite the server address with the correct IP
-						var addressNode = game.Nodes.FirstOrDefault(n => n.Key == "Address");
-						if (addressNode != null)
-							addressNode.Value.Value = bl.Address.ToString().Split(':')[0] + ":" + addressNode.Value.Value.Split(':')[1];
+						var game = MiniYaml.FromString(bl.Data)[0].Value;
+						var idNode = game.Nodes.FirstOrDefault(n => n.Key == "Id");
 
-						try
+						// Skip beacons created by this instance and replace Id by expected int value
+						if (idNode != null && idNode.Value.Value != Platform.SessionGUID.ToString())
 						{
+							idNode.Value.Value = "-1";
+
+							// Rewrite the server address with the correct IP
+							var addressNode = game.Nodes.FirstOrDefault(n => n.Key == "Address");
+							if (addressNode != null)
+								addressNode.Value.Value = bl.Address.ToString().Split(':')[0] + ":" + addressNode.Value.Value.Split(':')[1];
+
 							lanGames.Add(new GameServer(game));
 						}
-						catch { }
+					}
+					catch
+					{
+						// Ignore any invalid LAN games advertised.
 					}
 				}
 
@@ -397,6 +416,17 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			currentServer = server;
 			currentMap = server != null ? modData.MapCache[server.Map] : null;
 
+			// Can only show factions if the server is running the same mod
+			if (server != null && mapPreview != null)
+			{
+				var spawns = currentMap.SpawnPoints;
+				var occupants = server.Clients
+					.Where(c => (c.SpawnPoint - 1 >= 0) && (c.SpawnPoint - 1 < spawns.Length))
+					.ToDictionary(c => spawns[c.SpawnPoint - 1], c => new SpawnOccupant(c, server.Mod != modData.Manifest.Id));
+
+				mapPreview.SpawnOccupants = () => occupants;
+			}
+
 			if (server == null || !server.Clients.Any())
 			{
 				if (joinButton != null)
@@ -407,19 +437,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			if (joinButton != null)
 				joinButton.Bounds.Y = clientContainer.Bounds.Bottom;
-
-			// Can only show factions if the server is running the same mod
-			var disableFactionDisplay = server.Mod != modData.Manifest.Id;
-
-			if (server != null && mapPreview != null)
-			{
-				var spawns = currentMap.SpawnPoints;
-				var occupants = server.Clients
-					.Where(c => (c.SpawnPoint - 1 >= 0) && (c.SpawnPoint - 1 < spawns.Length))
-					.ToDictionary(c => spawns[c.SpawnPoint - 1], c => new SpawnOccupant(c, disableFactionDisplay));
-
-				mapPreview.SpawnOccupants = () => occupants;
-			}
 
 			if (clientList == null)
 				return;
@@ -458,13 +475,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					var o = option;
 
 					var item = ScrollItemWidget.Setup(clientTemplate, () => false, () => { });
-					if (!o.IsSpectator && !disableFactionDisplay)
+					if (!o.IsSpectator && server.Mod == modData.Manifest.Id)
 					{
 						var label = item.Get<LabelWidget>("LABEL");
 						var font = Game.Renderer.Fonts[label.Font];
 						var name = WidgetUtils.TruncateText(o.Name, label.Bounds.Width, font);
 						label.GetText = () => name;
-						label.GetColor = () => o.Color.RGB;
+						label.GetColor = () => o.Color;
 
 						var flag = item.Get<ImageWidget>("FLAG");
 						flag.IsVisible = () => true;
@@ -478,7 +495,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						var name = WidgetUtils.TruncateText(o.Name, label.Bounds.Width, font);
 
 						// Force spectator color to prevent spoofing by the server
-						var color = o.IsSpectator ? Color.White : o.Color.RGB;
+						var color = o.IsSpectator ? Color.White : o.Color;
 						label.GetText = () => name;
 						label.GetColor = () => color;
 					}
@@ -577,12 +594,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 						var canJoin = game.IsJoinable;
 						var item = ScrollItemWidget.Setup(serverTemplate, () => currentServer == game, () => SelectServer(game), () => onJoin(game));
-						var title = item.GetOrNull<LabelWidget>("TITLE");
+						var title = item.GetOrNull<LabelWithTooltipWidget>("TITLE");
 						if (title != null)
 						{
-							var font = Game.Renderer.Fonts[title.Font];
-							var label = WidgetUtils.TruncateText(game.Name, title.Bounds.Width, font);
-							title.GetText = () => label;
+							WidgetUtils.TruncateLabelToTooltip(title, game.Name);
 							title.GetColor = () => canJoin ? title.TextColor : incompatibleGameColor;
 						}
 
@@ -591,6 +606,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						{
 							password.IsVisible = () => game.Protected;
 							password.GetImageName = () => canJoin ? "protected" : "protected-disabled";
+						}
+
+						var auth = item.GetOrNull<ImageWidget>("REQUIRES_AUTHENTICATION");
+						if (auth != null)
+						{
+							auth.IsVisible = () => game.Authentication;
+							auth.GetImageName = () => canJoin ? "authentication" : "authentication-disabled";
+
+							if (game.Protected && password != null)
+								auth.Bounds.X -= password.Bounds.Width + 5;
 						}
 
 						var players = item.GetOrNull<LabelWithTooltipWidget>("PLAYERS");

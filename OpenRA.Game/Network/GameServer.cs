@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -13,14 +13,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using OpenRA.Graphics;
+using OpenRA.Primitives;
 
 namespace OpenRA.Network
 {
 	public class GameClient
 	{
 		public readonly string Name;
-		public readonly HSLColor Color;
+		public readonly string Fingerprint;
+		public readonly Color Color;
 		public readonly string Faction;
 		public readonly int Team;
 		public readonly int SpawnPoint;
@@ -33,6 +34,7 @@ namespace OpenRA.Network
 		public GameClient(Session.Client c)
 		{
 			Name = c.Name;
+			Fingerprint = c.Fingerprint;
 			Color = c.Color;
 			Faction = c.Faction;
 			Team = c.Team;
@@ -45,7 +47,18 @@ namespace OpenRA.Network
 
 	public class GameServer
 	{
-		static readonly string[] SerializeFields = { "Name", "Address", "Mod", "Version", "Map", "State", "MaxPlayers", "Protected" };
+		static readonly string[] SerializeFields =
+		{
+			// Server information
+			"Name", "Address",
+
+			// Mod information
+			"Mod", "Version", "ModTitle", "ModWebsite", "ModIcon32",
+
+			// Current server state
+			"Map", "State", "MaxPlayers", "Protected", "Authentication"
+		};
+
 		public const int ProtocolVersion = 2;
 
 		/// <summary>Online game number or -1 for LAN games</summary>
@@ -75,8 +88,20 @@ namespace OpenRA.Network
 		/// <summary>Mod Version</summary>
 		public readonly string Version = "";
 
+		/// <summary>Human-readable mod title</summary>
+		public readonly string ModTitle = "";
+
+		/// <summary>URL to show in game listings for custom/unknown mods.</summary>
+		public readonly string ModWebsite = "";
+
+		/// <summary>URL to a 32x32 px icon for the mod.</summary>
+		public readonly string ModIcon32 = "";
+
 		/// <summary>Password protected</summary>
 		public readonly bool Protected = false;
+
+		/// <summary>Players must be authenticated with the OpenRA forum</summary>
+		public readonly bool Authentication = false;
 
 		/// <summary>UTC datetime string when the game changed to the Playing state</summary>
 		public readonly string Started = null;
@@ -101,12 +126,10 @@ namespace OpenRA.Network
 		[FieldLoader.Ignore]
 		public readonly bool IsJoinable = false;
 
-		/// <summary>Label to display in the multiplayer browser. Only defined if GameServer is parsed from yaml.</summary>
-		[FieldLoader.Ignore]
-		public readonly string ModLabel = "";
-
 		[FieldLoader.LoadUsing("LoadClients")]
 		public readonly GameClient[] Clients;
+
+		public string ModLabel { get { return "{0} ({1})".F(ModTitle, Version); } }
 
 		static object LoadClients(MiniYaml yaml)
 		{
@@ -147,33 +170,40 @@ namespace OpenRA.Network
 					PlayTime = (int)(DateTime.UtcNow - startTime).TotalSeconds;
 			}
 
-			Manifest mod;
 			ExternalMod external;
-
 			var externalKey = ExternalMod.MakeKey(Mod, Version);
 			if (Game.ExternalMods.TryGetValue(externalKey, out external) && external.Version == Version)
-			{
-				ModLabel = "{0} ({1})".F(external.Title, external.Version);
 				IsCompatible = true;
-			}
-			else if (Game.Mods.TryGetValue(Mod, out mod))
-			{
-				// Use internal mod data to populate the section header, but
-				// on-connect switching must use the external mod plumbing.
-				ModLabel = "{0} ({1})".F(mod.Metadata.Title, Version);
-			}
-			else
-			{
-				// Some platforms (e.g. macOS) package each mod separately, so the Mods check above won't work.
-				// Guess based on the most recent ExternalMod instead.
-				var guessMod = Game.ExternalMods.Values
-					.OrderByDescending(m => m.Version)
-					.FirstOrDefault(m => m.Id == Mod);
 
-				if (guessMod != null)
-					ModLabel = "{0} ({1})".F(guessMod.Title, Version);
+			// Games advertised using the old API used local mod metadata
+			if (string.IsNullOrEmpty(ModTitle))
+			{
+				Manifest mod;
+
+				if (external != null && external.Version == Version)
+				{
+					// Use external mod registration to populate the section header
+					ModTitle = external.Title;
+				}
+				else if (Game.Mods.TryGetValue(Mod, out mod))
+				{
+					// Use internal mod data to populate the section header, but
+					// on-connect switching must use the external mod plumbing.
+					ModTitle = mod.Metadata.Title;
+				}
 				else
-					ModLabel = "Unknown mod: {0} ({1})".F(Mod, Version);
+				{
+					// Some platforms (e.g. macOS) package each mod separately, so the Mods check above won't work.
+					// Guess based on the most recent ExternalMod instead.
+					var guessMod = Game.ExternalMods.Values
+						.OrderByDescending(m => m.Version)
+						.FirstOrDefault(m => m.Id == Mod);
+
+					if (guessMod != null)
+						ModTitle = "{0}".F(guessMod.Title);
+					else
+						ModTitle = "Unknown mod: {0}".F(Mod);
+				}
 			}
 
 			var mapAvailable = Game.Settings.Game.AllowDownloading || Game.ModData.MapCache[Map].Status == MapStatus.Available;
@@ -182,6 +212,8 @@ namespace OpenRA.Network
 
 		public GameServer(Server.Server server)
 		{
+			var manifest = server.ModData.Manifest;
+
 			Name = server.Settings.Name;
 
 			// IP address will be replaced with a real value by the master server / receiving LAN client
@@ -189,9 +221,13 @@ namespace OpenRA.Network
 			State = (int)server.State;
 			MaxPlayers = server.LobbyInfo.Slots.Count(s => !s.Value.Closed) - server.LobbyInfo.Clients.Count(c1 => c1.Bot != null);
 			Map = server.Map.Uid;
-			Mod = server.ModData.Manifest.Id;
-			Version = server.ModData.Manifest.Metadata.Version;
+			Mod = manifest.Id;
+			Version = manifest.Metadata.Version;
+			ModTitle = manifest.Metadata.Title;
+			ModWebsite = manifest.Metadata.Website;
+			ModIcon32 = manifest.Metadata.WebIcon32;
 			Protected = !string.IsNullOrEmpty(server.Settings.Password);
+			Authentication = server.Settings.RequireAuthentication || server.Settings.ProfileIDWhitelist.Any();
 			Clients = server.LobbyInfo.Clients.Select(c => new GameClient(c)).ToArray();
 		}
 

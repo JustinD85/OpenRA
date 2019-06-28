@@ -1,6 +1,8 @@
 Metadata:
 	Title: Red Alert
 	Version: {DEV_VERSION}
+	Website: https://www.openra.net
+	WebIcon32: https://www.openra.net/images/icons/ra_32x32.png
 
 PackageFormats: Mix
 
@@ -89,10 +91,10 @@ ChromeLayout:
 	common|chrome/ingame-infostats.yaml
 	common|chrome/ingame-menu.yaml
 	ra|chrome/ingame-observer.yaml
-	common|chrome/ingame-observerstats.yaml
 	ra|chrome/ingame-player.yaml
 	common|chrome/ingame-perf.yaml
 	common|chrome/ingame-debug.yaml
+	common|chrome/ingame-debuginfo.yaml
 	common|chrome/ingame-infochat.yaml
 	common|chrome/mainmenu.yaml
 	common|chrome/settings.yaml
@@ -112,6 +114,8 @@ ChromeLayout:
 	common|chrome/multiplayer-directconnect.yaml
 	common|chrome/connection.yaml
 	common|chrome/replaybrowser.yaml
+	common|chrome/gamesave-browser.yaml
+	ra|chrome/gamesave-loading.yaml
 	common|chrome/dropdowns.yaml
 	common|chrome/musicplayer.yaml
 	common|chrome/tooltips.yaml
@@ -119,6 +123,7 @@ ChromeLayout:
 	common|chrome/missionbrowser.yaml
 	common|chrome/confirmation-dialogs.yaml
 	common|chrome/editor.yaml
+	common|chrome/playerprofile.yaml
 
 Weapons:
 	ra|weapons/explosions.yaml
@@ -163,30 +168,38 @@ ChromeMetrics:
 	ra|metrics.yaml
 
 Fonts:
-	Regular:
-		Font: common|FreeSans.ttf
-		Size:14
-	Bold:
-		Font: common|FreeSansBold.ttf
-		Size:14
-	Title:
-		Font: ra|ZoodRangmah.ttf
-		Size:48
-	MediumBold:
-		Font: common|FreeSansBold.ttf
-		Size:18
-	BigBold:
-		Font: common|FreeSansBold.ttf
-		Size:24
-	Small:
-		Font: common|FreeSans.ttf
-		Size:12
 	Tiny:
 		Font: common|FreeSans.ttf
-		Size:10
+		Size: 10
+		Ascender: 8
 	TinyBold:
 		Font: common|FreeSansBold.ttf
-		Size:10
+		Size: 10
+		Ascender: 8
+	Small:
+		Font: common|FreeSans.ttf
+		Size: 12
+		Ascender: 9
+	Regular:
+		Font: common|FreeSans.ttf
+		Size: 14
+		Ascender: 11
+	Bold:
+		Font: common|FreeSansBold.ttf
+		Size: 14
+		Ascender: 11
+	MediumBold:
+		Font: common|FreeSansBold.ttf
+		Size: 18
+		Ascender: 14
+	BigBold:
+		Font: common|FreeSansBold.ttf
+		Size: 24
+		Ascender: 18
+	Title:
+		Font: ra|ZoodRangmah.ttf
+		Size: 48
+		Ascender: 26
 
 Missions:
 	ra|missions.yaml
@@ -211,6 +224,10 @@ SpriteSequenceFormat: TilesetSpecificSpriteSequence
 ModelSequenceFormat: PlaceholderModelSequence
 
 GameSpeeds:
+	slowest:
+		Name: Slowest
+		Timestep: 80
+		OrderLatency: 2
 	slower:
 		Name: Slower
 		Timestep: 50
@@ -233,6 +250,7 @@ GameSpeeds:
 		OrderLatency: 6
 
 ColorValidator:
+	TeamColorPresets: ffc9ca, f50606, 98331f, f57606, f7bb06, f861a4, da06f3, ddb8ff, 06f739, cef7b2, 200738, 280df6, 2f86f2, 76d2f8, 34ba93, 000000
 
 ModContent:
 	InstallPromptMessage: Red Alert requires artwork and audio from the original game.\n\nQuick Install will automatically download this content (without music\nor videos) from a mirror of the 2008 Red Alert freeware release.\n\nAdvanced Install includes options for downloading the music and for\ncopying the videos and other content from an original game disc.

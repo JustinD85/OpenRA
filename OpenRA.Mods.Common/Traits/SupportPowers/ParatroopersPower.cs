@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -26,6 +26,7 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int SquadSize = 1;
 		public readonly WVec SquadOffset = new WVec(-1536, 1536, 0);
 
+		[NotificationReference("Speech")]
 		[Desc("Notification to play when entering the drop zone.")]
 		public readonly string ReinforcementsArrivedSpeechNotification = null;
 
@@ -49,6 +50,15 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Amount of time (in ticks) to keep the camera alive while the passengers drop.")]
 		public readonly int CameraRemoveDelay = 85;
 
+		[Desc("Enables the player directional targeting")]
+		public readonly bool UseDirectionalTarget = false;
+
+		[Desc("Animation used to render the direction arrows.")]
+		public readonly string DirectionArrowAnimation = null;
+
+		[Desc("Palette for direction cursor animation.")]
+		public readonly string DirectionArrowPalette = "chrome";
+
 		[Desc("Weapon range offset to apply during the beacon clock calculation.")]
 		public readonly WDist BeaconDistanceOffset = WDist.FromCells(4);
 
@@ -57,13 +67,33 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class ParatroopersPower : SupportPower
 	{
-		public ParatroopersPower(Actor self, ParatroopersPowerInfo info) : base(self, info) { }
+		readonly ParatroopersPowerInfo info;
+
+		public ParatroopersPower(Actor self, ParatroopersPowerInfo info)
+			: base(self, info)
+		{
+			this.info = info;
+		}
+
+		public override void SelectTarget(Actor self, string order, SupportPowerManager manager)
+		{
+			if (info.UseDirectionalTarget)
+			{
+				Game.Sound.PlayToPlayer(SoundType.UI, manager.Self.Owner, Info.SelectTargetSound);
+				Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech",
+					Info.SelectTargetSpeechNotification, self.Owner.Faction.InternalName);
+
+				self.World.OrderGenerator = new SelectDirectionalTarget(self.World, order, manager, Info.Cursor, info.DirectionArrowAnimation, info.DirectionArrowPalette);
+			}
+			else
+				base.SelectTarget(self, order, manager);
+		}
 
 		public override void Activate(Actor self, Order order, SupportPowerManager manager)
 		{
 			base.Activate(self, order, manager);
 
-			SendParatroopers(self, self.World.Map.CenterOfCell(order.TargetLocation));
+			SendParatroopers(self, order.Target.CenterPosition, !info.UseDirectionalTarget || order.ExtraData == uint.MaxValue, (int)order.ExtraData);
 		}
 
 		public Actor[] SendParatroopers(Actor self, WPos target, bool randomize = true, int dropFacing = 0)
@@ -94,7 +124,7 @@ namespace OpenRA.Mods.Common.Traits
 			Action<Actor> onEnterRange = a =>
 			{
 				// Spawn a camera and remove the beacon when the first plane enters the target area
-				if (info.CameraActor != null && !aircraftInRange.Any(kv => kv.Value))
+				if (info.CameraActor != null && camera == null && !aircraftInRange.Any(kv => kv.Value))
 				{
 					self.World.AddFrameEndTask(w =>
 					{
@@ -106,14 +136,7 @@ namespace OpenRA.Mods.Common.Traits
 					});
 				}
 
-				if (beacon != null)
-				{
-					self.World.AddFrameEndTask(w =>
-					{
-						w.Remove(beacon);
-						beacon = null;
-					});
-				}
+				RemoveBeacon(beacon);
 
 				if (!aircraftInRange.Any(kv => kv.Value))
 					Game.Sound.PlayNotification(self.World.Map.Rules, self.Owner, "Speech",
@@ -128,33 +151,22 @@ namespace OpenRA.Mods.Common.Traits
 
 				// Remove the camera when the final plane leaves the target area
 				if (!aircraftInRange.Any(kv => kv.Value))
-				{
-					if (camera != null)
-					{
-						camera.QueueActivity(new Wait(info.CameraRemoveDelay));
-						camera.QueueActivity(new RemoveSelf());
-					}
-
-					camera = null;
-
-					if (beacon != null)
-					{
-						self.World.AddFrameEndTask(w =>
-						{
-							w.Remove(beacon);
-							beacon = null;
-						});
-					}
-				}
+					RemoveCamera(camera);
 			};
 
-			foreach (var p in info.DropItems)
+			Action<Actor> onRemovedFromWorld = a =>
 			{
-				var unit = self.World.CreateActor(false, p.ToLowerInvariant(),
-					new TypeDictionary { new OwnerInit(self.Owner) });
+				aircraftInRange[a] = false;
 
-				units.Add(unit);
-			}
+				// Checking for attack range is not relevant here because
+				// aircraft may be shot down before entering. Thus we remove
+				// the camera and beacon only if the whole squad is dead.
+				if (aircraftInRange.All(kv => kv.Key.IsDead))
+				{
+					RemoveCamera(camera);
+					RemoveBeacon(beacon);
+				}
+			};
 
 			self.World.AddFrameEndTask(w =>
 			{
@@ -186,14 +198,20 @@ namespace OpenRA.Mods.Common.Traits
 					drop.SetLZ(w.Map.CellContaining(target + targetOffset), !info.AllowImpassableCells);
 					drop.OnEnteredDropRange += onEnterRange;
 					drop.OnExitedDropRange += onExitRange;
-					drop.OnRemovedFromWorld += onExitRange;
+					drop.OnRemovedFromWorld += onRemovedFromWorld;
 
 					var cargo = a.Trait<Cargo>();
-					var passengers = units.Skip(added).Take(passengersPerPlane);
-					added += passengersPerPlane;
+					foreach (var p in info.DropItems.Skip(added).Take(passengersPerPlane))
+					{
+						var unit = self.World.CreateActor(false, p.ToLowerInvariant(), new TypeDictionary
+						{
+							new OwnerInit(self.Owner)
+						});
 
-					foreach (var p in passengers)
-						cargo.Load(a, p);
+						cargo.Load(a, unit);
+						units.Add(unit);
+						added++;
+					}
 
 					a.QueueActivity(new Fly(a, Target.FromPos(target + spawnOffset)));
 					a.QueueActivity(new Fly(a, Target.FromPos(finishEdge + spawnOffset)));
@@ -214,6 +232,7 @@ namespace OpenRA.Mods.Common.Traits
 						Info.BeaconImage,
 						Info.BeaconPoster,
 						Info.BeaconPosterPalette,
+						Info.BeaconSequence,
 						Info.ArrowSequence,
 						Info.CircleSequence,
 						Info.ClockSequence,
@@ -225,6 +244,28 @@ namespace OpenRA.Mods.Common.Traits
 			});
 
 			return units.ToArray();
+		}
+
+		void RemoveCamera(Actor camera)
+		{
+			if (camera == null)
+				return;
+
+			camera.QueueActivity(new Wait(info.CameraRemoveDelay));
+			camera.QueueActivity(new RemoveSelf());
+			camera = null;
+		}
+
+		void RemoveBeacon(Beacon beacon)
+		{
+			if (beacon == null)
+				return;
+
+			Self.World.AddFrameEndTask(w =>
+			{
+				w.Remove(beacon);
+				beacon = null;
+			});
 		}
 	}
 }

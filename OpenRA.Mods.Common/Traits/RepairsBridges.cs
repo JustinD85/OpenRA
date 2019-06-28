@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -10,9 +10,9 @@
 #endregion
 
 using System.Collections.Generic;
-using System.Drawing;
 using OpenRA.Mods.Common.Activities;
 using OpenRA.Mods.Common.Orders;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -20,7 +20,8 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("Can enter a BridgeHut or LegacyBridgeHut to trigger a repair.")]
 	class RepairsBridgesInfo : ITraitInfo
 	{
-		[VoiceReference] public readonly string Voice = "Action";
+		[VoiceReference]
+		public readonly string Voice = "Action";
 
 		[Desc("Behaviour when entering the structure.",
 			"Possible values are Exit, Suicide, Dispose.")]
@@ -32,6 +33,7 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Cursor to use when repairing is denied.")]
 		public readonly string TargetBlockedCursor = "goldwrench-blocked";
 
+		[NotificationReference("Speech")]
 		[Desc("Speech notification to play when a bridge is repaired.")]
 		public readonly string RepairNotification = null;
 
@@ -62,14 +64,16 @@ namespace OpenRA.Mods.Common.Traits
 
 		public string VoicePhraseForOrder(Actor self, Order order)
 		{
-			if (order.OrderString != "RepairBridge")
+			// TODO: Add support for FrozenActors
+			if (order.OrderString != "RepairBridge" || order.Target.Type != TargetType.Actor)
 				return null;
 
-			var legacyHut = order.TargetActor.TraitOrDefault<LegacyBridgeHut>();
+			var targetActor = order.Target.Actor;
+			var legacyHut = targetActor.TraitOrDefault<LegacyBridgeHut>();
 			if (legacyHut != null)
 				return legacyHut.BridgeDamageState == DamageState.Undamaged || legacyHut.Repairing || legacyHut.Bridge.IsDangling ? null : info.Voice;
 
-			var hut = order.TargetActor.TraitOrDefault<BridgeHut>();
+			var hut = targetActor.TraitOrDefault<BridgeHut>();
 			if (hut != null)
 				return hut.BridgeDamageState == DamageState.Undamaged || hut.Repairing ? null : info.Voice;
 
@@ -78,10 +82,13 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void ResolveOrder(Actor self, Order order)
 		{
-			if (order.OrderString == "RepairBridge")
+			// TODO: Add support for FrozenActors
+			// The activity supports it, but still missing way to freeze bridge state on the hut
+			if (order.OrderString == "RepairBridge" && order.Target.Type == TargetType.Actor)
 			{
-				var legacyHut = order.TargetActor.TraitOrDefault<LegacyBridgeHut>();
-				var hut = order.TargetActor.TraitOrDefault<BridgeHut>();
+				var targetActor = order.Target.Actor;
+				var legacyHut = targetActor.TraitOrDefault<LegacyBridgeHut>();
+				var hut = targetActor.TraitOrDefault<BridgeHut>();
 				if (legacyHut != null)
 				{
 					if (legacyHut.BridgeDamageState == DamageState.Undamaged || legacyHut.Repairing || legacyHut.Bridge.IsDangling)
@@ -98,8 +105,8 @@ namespace OpenRA.Mods.Common.Traits
 				if (!order.Queued)
 					self.CancelActivity();
 
-				self.SetTargetLine(Target.FromOrder(self.World, order), Color.Yellow);
-				self.QueueActivity(new RepairBridge(self, order.TargetActor, info.EnterBehaviour, info.RepairNotification));
+				self.SetTargetLine(order.Target, Color.Yellow);
+				self.QueueActivity(new RepairBridge(self, order.Target, info.EnterBehaviour, info.RepairNotification));
 			}
 		}
 

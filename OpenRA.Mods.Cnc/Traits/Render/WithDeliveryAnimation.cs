@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Linq;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Mods.Common.Traits.Render;
 using OpenRA.Traits;
@@ -16,35 +17,41 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Cnc.Traits.Render
 {
 	[Desc("Building animation to play when ProductionAirdrop is used to deliver units.")]
-	public class WithDeliveryAnimationInfo : ITraitInfo, Requires<WithSpriteBodyInfo>
+	public class WithDeliveryAnimationInfo : ConditionalTraitInfo, Requires<WithSpriteBodyInfo>
 	{
-		[SequenceReference] public readonly string ActiveSequence = "active";
+		[SequenceReference]
+		public readonly string ActiveSequence = "active";
 
-		[SequenceReference] public readonly string IdleSequence = "idle";
+		[Desc("Which sprite body to play the animation on.")]
+		public readonly string Body = "body";
 
-		public object Create(ActorInitializer init) { return new WithDeliveryAnimation(init.Self, this); }
+		public override object Create(ActorInitializer init) { return new WithDeliveryAnimation(init.Self, this); }
 	}
 
-	public class WithDeliveryAnimation : INotifyDelivery
+	public class WithDeliveryAnimation : ConditionalTrait<WithDeliveryAnimationInfo>, INotifyDelivery
 	{
-		readonly WithDeliveryAnimationInfo info;
 		readonly WithSpriteBody wsb;
 
 		public WithDeliveryAnimation(Actor self, WithDeliveryAnimationInfo info)
+			: base(info)
 		{
-			wsb = self.Trait<WithSpriteBody>();
-
-			this.info = info;
+			wsb = self.TraitsImplementing<WithSpriteBody>().Single(w => w.Info.Name == info.Body);
 		}
 
 		public void IncomingDelivery(Actor self)
 		{
-			wsb.PlayCustomAnimationRepeating(self, info.ActiveSequence);
+			if (!IsTraitDisabled)
+				wsb.PlayCustomAnimationRepeating(self, Info.ActiveSequence);
 		}
 
 		public void Delivered(Actor self)
 		{
-			wsb.PlayCustomAnimationRepeating(self, info.IdleSequence);
+			wsb.CancelCustomAnimation(self);
+		}
+
+		protected override void TraitDisabled(Actor self)
+		{
+			wsb.CancelCustomAnimation(self);
 		}
 	}
 }

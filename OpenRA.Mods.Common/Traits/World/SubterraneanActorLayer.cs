@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -61,9 +61,10 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		bool ICustomMovementLayer.EnabledForActor(ActorInfo a, MobileInfo mi) { return mi.Subterranean; }
+		bool ICustomMovementLayer.EnabledForActor(ActorInfo a, LocomotorInfo li) { return li is SubterraneanLocomotorInfo; }
 		byte ICustomMovementLayer.Index { get { return CustomMovementLayerType.Subterranean; } }
 		bool ICustomMovementLayer.InteractsWithDefaultLayer { get { return false; } }
+		bool ICustomMovementLayer.ReturnToGroundLayerOnIdle { get { return true; } }
 
 		WPos ICustomMovementLayer.CenterOfCell(CPos cell)
 		{
@@ -71,13 +72,14 @@ namespace OpenRA.Mods.Common.Traits
 			return pos + new WVec(0, 0, height[cell] - pos.Z);
 		}
 
-		bool ValidTransitionCell(CPos cell, MobileInfo mi)
+		bool ValidTransitionCell(CPos cell, LocomotorInfo li)
 		{
 			var terrainType = map.GetTerrainInfo(cell).Type;
-			if (!mi.SubterraneanTransitionTerrainTypes.Contains(terrainType) && mi.SubterraneanTransitionTerrainTypes.Any())
+			var sli = (SubterraneanLocomotorInfo)li;
+			if (!sli.SubterraneanTransitionTerrainTypes.Contains(terrainType) && sli.SubterraneanTransitionTerrainTypes.Any())
 				return false;
 
-			if (mi.SubterraneanTransitionOnRamps)
+			if (sli.SubterraneanTransitionOnRamps)
 				return true;
 
 			var tile = map.Tiles[cell];
@@ -85,14 +87,16 @@ namespace OpenRA.Mods.Common.Traits
 			return ti == null || ti.RampType == 0;
 		}
 
-		int ICustomMovementLayer.EntryMovementCost(ActorInfo a, MobileInfo mi, CPos cell)
+		int ICustomMovementLayer.EntryMovementCost(ActorInfo a, LocomotorInfo li, CPos cell)
 		{
-			return ValidTransitionCell(cell, mi) ? mi.SubterraneanTransitionCost : int.MaxValue;
+			var sli = (SubterraneanLocomotorInfo)li;
+			return ValidTransitionCell(cell, sli) ? sli.SubterraneanTransitionCost : int.MaxValue;
 		}
 
-		int ICustomMovementLayer.ExitMovementCost(ActorInfo a, MobileInfo mi, CPos cell)
+		int ICustomMovementLayer.ExitMovementCost(ActorInfo a, LocomotorInfo li, CPos cell)
 		{
-			return ValidTransitionCell(cell, mi) ? mi.SubterraneanTransitionCost : int.MaxValue;
+			var sli = (SubterraneanLocomotorInfo)li;
+			return ValidTransitionCell(cell, sli) ? sli.SubterraneanTransitionCost : int.MaxValue;
 		}
 
 		byte ICustomMovementLayer.GetTerrainIndex(CPos cell)

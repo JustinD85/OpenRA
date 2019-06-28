@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -17,7 +17,7 @@ using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	class CrateInfo : ITraitInfo, IPositionableInfo, Requires<RenderSpritesInfo>
+	public class CrateInfo : ITraitInfo, IPositionableInfo, Requires<RenderSpritesInfo>
 	{
 		[Desc("Length of time (in seconds) until the crate gets removed automatically. " +
 			"A value of zero disables auto-removal.")]
@@ -44,13 +44,21 @@ namespace OpenRA.Mods.Common.Traits
 			return GetAvailableSubCell(world, cell, ignoreActor, checkTransientActors) != SubCell.Invalid;
 		}
 
-		public SubCell GetAvailableSubCell(World world, CPos cell, Actor ignoreActor = null, bool checkTransientActors = true)
+		public bool CanExistInCell(World world, CPos cell)
 		{
 			if (!world.Map.Contains(cell))
-				return SubCell.Invalid;
+				return false;
 
 			var type = world.Map.GetTerrainInfo(cell).Type;
 			if (!TerrainTypes.Contains(type))
+				return false;
+
+			return true;
+		}
+
+		public SubCell GetAvailableSubCell(World world, CPos cell, Actor ignoreActor = null, bool checkTransientActors = true)
+		{
+			if (!CanExistInCell(world, cell))
 				return SubCell.Invalid;
 
 			if (world.WorldActor.Trait<BuildingInfluence>().GetBuildingAt(cell) != null)
@@ -64,15 +72,18 @@ namespace OpenRA.Mods.Common.Traits
 		}
 	}
 
-	class Crate : ITick, IPositionable, ICrushable, ISync,
+	public class Crate : ITick, IPositionable, ICrushable, ISync,
 		INotifyParachute, INotifyAddedToWorld, INotifyRemovedFromWorld, INotifyCrushed
 	{
 		readonly Actor self;
 		readonly CrateInfo info;
 		bool collected;
 
-		[Sync] int ticks;
-		[Sync] public CPos Location;
+		[Sync]
+		int ticks;
+
+		[Sync]
+		public CPos Location;
 
 		public Crate(ActorInitializer init, CrateInfo info)
 		{
@@ -83,9 +94,9 @@ namespace OpenRA.Mods.Common.Traits
 				SetPosition(self, init.Get<LocationInit, CPos>());
 		}
 
-		void INotifyCrushed.WarnCrush(Actor self, Actor crusher, HashSet<string> crushClasses) { }
+		void INotifyCrushed.WarnCrush(Actor self, Actor crusher, BitSet<CrushClass> crushClasses) { }
 
-		void INotifyCrushed.OnCrush(Actor self, Actor crusher, HashSet<string> crushClasses)
+		void INotifyCrushed.OnCrush(Actor self, Actor crusher, BitSet<CrushClass> crushClasses)
 		{
 			// Crate can only be crushed if it is not in the air.
 			if (!self.IsAtGroundLevel() || !crushClasses.Contains(info.CrushClass))
@@ -113,7 +124,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				// Make sure that the actor can collect this crate type
 				// Crate can only be crushed if it is not in the air.
-				return self.IsAtGroundLevel() && mi.Crushes.Contains(info.CrushClass);
+				return self.IsAtGroundLevel() && mi.LocomotorInfo.Crushes.Contains(info.CrushClass);
 			});
 
 			// Destroy the crate if none of the units in the cell are valid collectors
@@ -201,12 +212,14 @@ namespace OpenRA.Mods.Common.Traits
 			return info.GetAvailableSubCell(self.World, cell, ignoreActor, checkTransientActors);
 		}
 
+		public bool CanExistInCell(CPos cell) { return info.CanExistInCell(self.World, cell); }
+
 		public bool CanEnterCell(CPos a, Actor ignoreActor = null, bool checkTransientActors = true)
 		{
 			return GetAvailableSubCell(a, SubCell.Any, ignoreActor, checkTransientActors) != SubCell.Invalid;
 		}
 
-		bool ICrushable.CrushableBy(Actor self, Actor crusher, HashSet<string> crushClasses)
+		bool ICrushable.CrushableBy(Actor self, Actor crusher, BitSet<CrushClass> crushClasses)
 		{
 			// Crate can only be crushed if it is not in the air.
 			return self.IsAtGroundLevel() && crushClasses.Contains(info.CrushClass);

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -23,35 +23,35 @@ namespace OpenRA.Mods.Common.Traits
 
 	public class DomainIndex : IWorldLoaded
 	{
+		TileSet tileSet;
 		Dictionary<uint, MovementClassDomainIndex> domainIndexes;
 
 		public void WorldLoaded(World world, WorldRenderer wr)
 		{
 			domainIndexes = new Dictionary<uint, MovementClassDomainIndex>();
-			var tileSet = world.Map.Rules.TileSet;
-			var movementClasses =
-				world.Map.Rules.Actors.Where(ai => ai.Value.HasTraitInfo<MobileInfo>())
-					.Select(ai => (uint)ai.Value.TraitInfo<MobileInfo>().GetMovementClass(tileSet)).Distinct();
+			tileSet = world.Map.Rules.TileSet;
+			var locomotors = world.WorldActor.TraitsImplementing<Locomotor>().Where(l => !string.IsNullOrEmpty(l.Info.Name));
+			var movementClasses = locomotors.Select(t => (uint)t.Info.GetMovementClass(tileSet)).Distinct();
 
 			foreach (var mc in movementClasses)
 				domainIndexes[mc] = new MovementClassDomainIndex(world, mc);
 		}
 
-		public bool IsPassable(CPos p1, CPos p2, MobileInfo mi, uint movementClass)
+		public bool IsPassable(CPos p1, CPos p2, LocomotorInfo li)
 		{
 			// HACK: Work around units in other movement layers from being blocked
 			// when the point in the main layer is not pathable
 			if (p1.Layer != 0 || p2.Layer != 0)
 				return true;
 
-			// HACK: Workaround until we can generalize movement classes
-			if (mi.Subterranean || mi.Jumpjet)
+			if (li.DisableDomainPassabilityCheck)
 				return true;
 
+			var movementClass = li.GetMovementClass(tileSet);
 			return domainIndexes[movementClass].IsPassable(p1, p2);
 		}
 
-		/// Regenerate the domain index for a group of cells
+		/// <summary>Regenerate the domain index for a group of cells.</summary>
 		public void UpdateCells(World world, IEnumerable<CPos> cells)
 		{
 			var dirty = cells.ToHashSet();

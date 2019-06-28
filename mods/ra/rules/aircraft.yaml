@@ -2,10 +2,9 @@ BADR:
 	Inherits: ^NeutralPlane
 	ParaDrop:
 		DropRange: 4c0
+		ChuteSound: chute1.aud
 	Health:
 		HP: 30000
-	Armor:
-		Type: Light
 	Aircraft:
 		CruiseAltitude: 2560
 		TurnSpeed: 5
@@ -45,8 +44,6 @@ BADR.Bomber:
 		Weapon: ParaBomb
 	Health:
 		HP: 30000
-	Armor:
-		Type: Light
 	Aircraft:
 		CruiseAltitude: 2560
 		TurnSpeed: 5
@@ -74,6 +71,7 @@ BADR.Bomber:
 		Offset: -432,-560,0
 		Interval: 2
 	-EjectOnDeath:
+	-MapEditorData:
 	RejectsOrders:
 	RenderSprites:
 		Image: badr
@@ -89,16 +87,16 @@ MIG:
 		BuildAtProductionType: Plane
 		BuildPaletteOrder: 50
 		Prerequisites: ~afld, stek, ~techlevel.high
-		BuildDuration: 1750
+		BuildDurationModifier: 50
 		Description: Fast Ground-Attack Plane.\n  Strong vs Buildings, Vehicles\n  Weak vs Infantry, Aircraft
 	Valued:
 		Cost: 2000
 	Tooltip:
 		Name: MiG Attack Plane
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 7500
-	Armor:
-		Type: Light
 	RevealsShroud:
 		Range: 13c0
 		Type: GroundPosition
@@ -111,10 +109,10 @@ MIG:
 		LocalOffset: 0,-640,0, 0,640,0
 		LocalYaw: -40, 24
 		PauseOnCondition: !ammo
-	AttackPlane:
+	AttackAircraft:
 		FacingTolerance: 20
+		PersistentTargeting: false
 	Aircraft:
-		RearmBuildings: afld, afld.ukraine
 		CruiseAltitude: 2560
 		InitialFacing: 192
 		TurnSpeed: 4
@@ -143,6 +141,8 @@ MIG:
 		Interval: 2
 	ProducibleWithLevel:
 		Prerequisites: aircraft.upgraded
+	Rearmable:
+		RearmActors: afld, afld.ukraine
 
 YAK:
 	Inherits: ^Plane
@@ -157,10 +157,10 @@ YAK:
 		Cost: 1350
 	Tooltip:
 		Name: Yak Attack Plane
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 6000
-	Armor:
-		Type: Light
 	RevealsShroud:
 		Range: 11c0
 		Type: GroundPosition
@@ -179,10 +179,10 @@ YAK:
 		LocalOffset: 256,213,0
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo
-	AttackPlane:
+	AttackAircraft:
 		FacingTolerance: 20
+		PersistentTargeting: false
 	Aircraft:
-		RearmBuildings: afld, afld.ukraine
 		CruiseAltitude: 2560
 		InitialFacing: 192
 		TurnSpeed: 4
@@ -211,6 +211,8 @@ YAK:
 		Prerequisites: aircraft.upgraded
 	Selectable:
 		DecorationBounds: 30,28,0,2
+	Rearmable:
+		RearmActors: afld, afld.ukraine
 
 TRAN:
 	Inherits: ^Helicopter
@@ -224,10 +226,10 @@ TRAN:
 		Cost: 900
 	Tooltip:
 		Name: Chinook
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 14000
-	Armor:
-		Type: Light
 	RevealsShroud:
 		Range: 8c0
 		Type: GroundPosition
@@ -236,10 +238,10 @@ TRAN:
 		Range: 6c0
 		Type: GroundPosition
 	Aircraft:
-		InitialFacing: 224
 		TurnSpeed: 5
 		Speed: 128
 		LandableTerrainTypes: Clear,Rough,Road,Ore,Beach,Gems
+		Crushes: crate, mine, infantry
 		AltitudeVelocity: 0c58
 	WithIdleOverlay@ROTOR1AIR:
 		Offset: 597,0,213
@@ -275,16 +277,16 @@ HELI:
 		BuildAtProductionType: Helicopter
 		BuildPaletteOrder: 40
 		Prerequisites: ~hpad, atek, ~techlevel.high
-		BuildDuration: 1750
+		BuildDurationModifier: 50
 		Description: Helicopter gunship armed\nwith multi-purpose missiles.\n  Strong vs Buildings, Vehicles, Aircraft\n  Weak vs Infantry
 	Valued:
 		Cost: 2000
 	Tooltip:
 		Name: Longbow
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 12000
-	Armor:
-		Type: Light
 	RevealsShroud:
 		Range: 12c0
 		Type: GroundPosition
@@ -300,12 +302,12 @@ HELI:
 		Weapon: HellfireAG
 		LocalOffset: 0,213,-85, 0,-213,-85
 		PauseOnCondition: !ammo
-	AttackHeli:
+	AttackAircraft:
 		FacingTolerance: 20
+		PersistentTargeting: false
+		AttackType: Hover
 	Aircraft:
-		RearmBuildings: hpad
 		LandWhenIdle: false
-		InitialFacing: 224
 		TurnSpeed: 4
 		Speed: 149
 	AutoTarget:
@@ -331,6 +333,8 @@ HELI:
 		Prerequisites: aircraft.upgraded
 	Selectable:
 		DecorationBounds: 36,28
+	Rearmable:
+		RearmActors: hpad
 
 HIND:
 	Inherits: ^Helicopter
@@ -342,13 +346,13 @@ HIND:
 		Prerequisites: ~hpad, ~techlevel.medium
 		Description: Helicopter gunship armed\nwith dual chainguns.\n  Strong vs Infantry, Light armor\n  Weak vs Tanks, Aircraft
 	Valued:
-		Cost: 1350
+		Cost: 1500
 	Tooltip:
 		Name: Hind
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 10000
-	Armor:
-		Type: Light
 	RevealsShroud:
 		Range: 10c0
 		Type: GroundPosition
@@ -367,12 +371,12 @@ HIND:
 		LocalOffset: 85,213,-85, 85,-213,-85
 		MuzzleSequence: muzzle
 		PauseOnCondition: !ammo
-	AttackHeli:
+	AttackAircraft:
 		FacingTolerance: 20
+		PersistentTargeting: false
+		AttackType: Hover
 	Aircraft:
-		RearmBuildings: hpad
 		LandWhenIdle: false
-		InitialFacing: 224
 		TurnSpeed: 4
 		Speed: 112
 	AutoTarget:
@@ -399,6 +403,8 @@ HIND:
 		Prerequisites: aircraft.upgraded
 	Selectable:
 		DecorationBounds: 38,32
+	Rearmable:
+		RearmActors: hpad
 
 U2:
 	Inherits: ^NeutralPlane
@@ -406,8 +412,6 @@ U2:
 		HP: 200000
 	Tooltip:
 		Name: Spy Plane
-	Armor:
-		Type: Heavy
 	Aircraft:
 		CruiseAltitude: 2560
 		TurnSpeed: 7
@@ -431,3 +435,4 @@ U2:
 		Interval: 2
 	RejectsOrders:
 	Interactable:
+	-MapEditorData:

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,11 +11,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using OpenRA.Mods.Common.Orders;
 using OpenRA.Mods.Common.Traits;
-using OpenRA.Mods.Common.Traits.Render;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Cnc.Traits
@@ -74,7 +73,8 @@ namespace OpenRA.Mods.Cnc.Traits
 	[Desc("Provides access to the disguise command, which makes the actor appear to be another player's actor.")]
 	class DisguiseInfo : ITraitInfo
 	{
-		[VoiceReference] public readonly string Voice = "Action";
+		[VoiceReference]
+		public readonly string Voice = "Action";
 
 		[GrantedConditionReference]
 		[Desc("The condition to grant to self while disguised.")]
@@ -84,7 +84,7 @@ namespace OpenRA.Mods.Cnc.Traits
 		public readonly Stance ValidStances = Stance.Ally | Stance.Neutral | Stance.Enemy;
 
 		[Desc("Target types of actors that this actor disguise as.")]
-		public readonly HashSet<string> TargetTypes = new HashSet<string> { "Disguise" };
+		public readonly BitSet<TargetableType> TargetTypes = new BitSet<TargetableType>("Disguise");
 
 		[Desc("Triggers which cause the actor to drop it's disguise. Possible values: None, Attack, Damaged,",
 			"Unload, Infiltrate, Demolish, Move.")]
@@ -170,7 +170,7 @@ namespace OpenRA.Mods.Cnc.Traits
 			if (!Disguised || self.Owner.IsAlliedWith(self.World.RenderPlayer))
 				return color;
 
-			return color = Game.Settings.Game.UsePlayerStanceColors ? AsPlayer.PlayerStanceColor(self) : AsPlayer.Color.RGB;
+			return color = Game.Settings.Game.UsePlayerStanceColors ? AsPlayer.PlayerStanceColor(self) : AsPlayer.Color;
 		}
 
 		public void DisguiseAs(Actor target)
@@ -317,7 +317,7 @@ namespace OpenRA.Mods.Cnc.Traits
 			if (!info.ValidStances.HasStance(stance))
 				return false;
 
-			return info.TargetTypes.Overlaps(target.Info.TraitInfos<ITargetableInfo>().SelectMany(ti => ti.GetTargetTypes()));
+			return info.TargetTypes.Overlaps(target.Info.GetAllTargetTypes());
 		}
 	}
 }

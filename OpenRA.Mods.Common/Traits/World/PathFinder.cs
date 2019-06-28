@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -19,7 +19,7 @@ using OpenRA.Traits;
 namespace OpenRA.Mods.Common.Traits
 {
 	[Desc("Calculates routes for mobile units based on the A* search algorithm.", " Attach this to the world actor.")]
-	public class PathFinderInfo : ITraitInfo
+	public class PathFinderInfo : ITraitInfo, Requires<LocomotorInfo>
 	{
 		public object Create(ActorInitializer init)
 		{
@@ -54,6 +54,8 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		static readonly List<CPos> EmptyPath = new List<CPos>(0);
 		readonly World world;
+		DomainIndex domainIndex;
+		bool cached;
 
 		public PathFinder(World world)
 		{
@@ -62,30 +64,39 @@ namespace OpenRA.Mods.Common.Traits
 
 		public List<CPos> FindUnitPath(CPos source, CPos target, Actor self, Actor ignoreActor)
 		{
-			var mi = self.Info.TraitInfo<MobileInfo>();
-
-			// If a water-land transition is required, bail early
-			var domainIndex = world.WorldActor.TraitOrDefault<DomainIndex>();
-			if (domainIndex != null)
+			var li = self.Info.TraitInfo<MobileInfo>().LocomotorInfo;
+			if (!cached)
 			{
-				var passable = mi.GetMovementClass(world.Map.Rules.TileSet);
-				if (!domainIndex.IsPassable(source, target, mi, (uint)passable))
-					return EmptyPath;
+				domainIndex = world.WorldActor.TraitOrDefault<DomainIndex>();
+				cached = true;
 			}
 
-			List<CPos> pb;
-			using (var fromSrc = PathSearch.FromPoint(world, mi, self, target, source, true).WithIgnoredActor(ignoreActor))
-			using (var fromDest = PathSearch.FromPoint(world, mi, self, source, target, true).WithIgnoredActor(ignoreActor).Reverse())
-				pb = FindBidiPath(fromSrc, fromDest);
+			// If a water-land transition is required, bail early
+			if (domainIndex != null && !domainIndex.IsPassable(source, target, li))
+				return EmptyPath;
 
-			CheckSanePath2(pb, source, target);
+			var distance = source - target;
+			if (source.Layer == target.Layer && distance.LengthSquared < 3 && li.CanMoveFreelyInto(world, self, target, null, CellConditions.All))
+				return new List<CPos> { target };
+
+			List<CPos> pb;
+			using (var fromSrc = PathSearch.FromPoint(world, li, self, target, source, true).WithIgnoredActor(ignoreActor))
+			using (var fromDest = PathSearch.FromPoint(world, li, self, source, target, true).WithIgnoredActor(ignoreActor).Reverse())
+				pb = FindBidiPath(fromSrc, fromDest);
 
 			return pb;
 		}
 
 		public List<CPos> FindUnitPathToRange(CPos source, SubCell srcSub, WPos target, WDist range, Actor self)
 		{
+			if (!cached)
+			{
+				domainIndex = world.WorldActor.TraitOrDefault<DomainIndex>();
+				cached = true;
+			}
+
 			var mi = self.Info.TraitInfo<MobileInfo>();
+			var li = mi.LocomotorInfo;
 			var targetCell = world.Map.CellContaining(target);
 
 			// Correct for SubCell offset
@@ -99,17 +110,15 @@ namespace OpenRA.Mods.Common.Traits
 
 			// See if there is any cell within range that does not involve a cross-domain request
 			// Really, we only need to check the circle perimeter, but it's not clear that would be a performance win
-			var domainIndex = world.WorldActor.TraitOrDefault<DomainIndex>();
 			if (domainIndex != null)
 			{
-				var passable = mi.GetMovementClass(world.Map.Rules.TileSet);
-				tilesInRange = new List<CPos>(tilesInRange.Where(t => domainIndex.IsPassable(source, t, mi, (uint)passable)));
+				tilesInRange = new List<CPos>(tilesInRange.Where(t => domainIndex.IsPassable(source, t, li)));
 				if (!tilesInRange.Any())
 					return EmptyPath;
 			}
 
-			using (var fromSrc = PathSearch.FromPoints(world, mi, self, tilesInRange, source, true))
-			using (var fromDest = PathSearch.FromPoint(world, mi, self, source, targetCell, true).Reverse())
+			using (var fromSrc = PathSearch.FromPoints(world, li, self, tilesInRange, source, true))
+			using (var fromDest = PathSearch.FromPoint(world, li, self, source, targetCell, true).Reverse())
 				return FindBidiPath(fromSrc, fromDest);
 		}
 
@@ -146,7 +155,6 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				// make some progress on the first search
 				var p = fromSrc.Expand();
-
 				if (fromDest.Graph[p].Status == CellStatus.Closed &&
 					fromDest.Graph[p].CostSoFar < int.MaxValue)
 				{
@@ -156,7 +164,6 @@ namespace OpenRA.Mods.Common.Traits
 
 				// make some progress on the second search
 				var q = fromDest.Expand();
-
 				if (fromSrc.Graph[q].Status == CellStatus.Closed &&
 					fromSrc.Graph[q].CostSoFar < int.MaxValue)
 				{
@@ -188,7 +195,6 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			ret.Add(currentNode);
-			CheckSanePath(ret);
 			return ret;
 		}
 
@@ -217,35 +223,7 @@ namespace OpenRA.Mods.Common.Traits
 				ret.Add(q);
 			}
 
-			CheckSanePath(ret);
 			return ret;
-		}
-
-		[Conditional("SANITY_CHECKS")]
-		static void CheckSanePath(IList<CPos> path)
-		{
-			if (path.Count == 0)
-				return;
-			var prev = path[0];
-			foreach (var cell in path)
-			{
-				var d = cell - prev;
-				if (Math.Abs(d.X) > 1 || Math.Abs(d.Y) > 1)
-					throw new InvalidOperationException("(PathFinder) path sanity check failed");
-				prev = cell;
-			}
-		}
-
-		[Conditional("SANITY_CHECKS")]
-		static void CheckSanePath2(IList<CPos> path, CPos src, CPos dest)
-		{
-			if (path.Count == 0)
-				return;
-
-			if (path[0] != dest)
-				throw new InvalidOperationException("(PathFinder) sanity check failed: doesn't go to dest");
-			if (path[path.Count - 1] != src)
-				throw new InvalidOperationException("(PathFinder) sanity check failed: doesn't come from src");
 		}
 	}
 }

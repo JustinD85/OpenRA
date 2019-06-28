@@ -31,8 +31,13 @@
 	Warhead@3Eff: CreateEffect
 		Explosions: small_frag
 		ImpactSounds: xplos.aud
-		VictimScanRadius: 0
-		ValidTargets: Ground, Water, Air
+		ImpactActors: false
+		ValidTargets: Ground, Water
+	Warhead@4EffAir: CreateEffect
+		Explosions: small_poof
+		ImpactSounds: xplos.aud
+		ImpactActors: false
+		ValidTargets: Air
 
 Dragon:
 	Inherits: ^MissileWeapon
@@ -52,7 +57,7 @@ Dragon:
 			None: 140
 			Wood: 140
 			Heavy: 104
-	Warhead@3Eff: CreateEffect
+	Warhead@4EffAir: CreateEffect
 		Explosions: small_building
 
 Rockets:
@@ -102,7 +107,7 @@ OrcaAAMissiles:
 		Versus:
 			Light: 84
 			Heavy: 56
-	-Warhead@2Smu: LeaveSmudge
+	-Warhead@2Smu:
 
 MammothMissiles:
 	Inherits: ^MissileWeapon
@@ -125,13 +130,8 @@ MammothMissiles:
 			Heavy: 44
 	Warhead@3Eff: CreateEffect
 		Explosions: small_poof
-		ImpactSounds: xplos.aud
-		ValidTargets: Ground, Water
 	Warhead@4EffAir: CreateEffect
 		Explosions: small_building
-		ImpactSounds: xplos.aud
-		VictimScanRadius: 0
-		ValidTargets: Air
 
 227mm:
 	Inherits: ^MissileWeapon
@@ -143,7 +143,13 @@ MammothMissiles:
 	Report: rocket1.aud
 	ValidTargets: Ground
 	TargetActorCenter: true
+	# Remove default Missile properties
+	-Projectile:
 	Projectile: Bullet
+		Blockable: false
+		Image: DRAGON
+		Shadow: true
+		TrailImage: smokey
 		Inaccuracy: 853
 		LaunchAngle: 62
 		ContrailLength: 10
@@ -158,7 +164,6 @@ MammothMissiles:
 			Heavy: 48
 	Warhead@3Eff: CreateEffect
 		Explosions: med_frag
-		ImpactSounds: xplos.aud
 
 227mm.stnk:
 	Inherits: ^MissileWeapon
@@ -203,13 +208,8 @@ BoatMissile:
 		DamageTypes: Prone50Percent, TriggerProne, SmallExplosionDeath
 	Warhead@3Eff: CreateEffect
 		Explosions: small_poof
-		ImpactSounds: xplos.aud
-		ValidTargets: Ground, Water
 	Warhead@4EffAir: CreateEffect
 		Explosions: small_building
-		ImpactSounds: xplos.aud
-		VictimScanRadius: 0
-		ValidTargets: Air
 
 TowerMissile:
 	Inherits: ^MissileWeapon
@@ -232,7 +232,6 @@ TowerMissile:
 		DamageTypes: Prone50Percent, TriggerProne, SmallExplosionDeath
 	Warhead@3Eff: CreateEffect
 		Explosions: med_frag
-		ImpactSounds: xplos.aud
 
 TowerAAMissile:
 	Inherits: ^MissileWeapon
@@ -254,10 +253,9 @@ TowerAAMissile:
 			Wood: 140
 			Light: 140
 			Heavy: 104
-	-Warhead@2Smu: LeaveSmudge
-	Warhead@3Eff: CreateEffect
+	-Warhead@2Smu:
+	Warhead@4EffAir: CreateEffect
 		Explosions: small_building
-		ImpactSounds: xplos.aud
 
 Patriot:
 	Inherits: ^MissileWeapon
@@ -281,7 +279,6 @@ Patriot:
 			Wood: 84
 			Light: 100
 			Heavy: 74
-	-Warhead@2Smu: LeaveSmudge
-	Warhead@3Eff: CreateEffect
+	-Warhead@2Smu:
+	Warhead@4EffAir: CreateEffect
 		Explosions: poof
-		ImpactSounds: xplos.aud

@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,9 +11,9 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
-using System.IO;
 using OpenRA.Graphics;
+using OpenRA.Mods.Common.Widgets;
+using OpenRA.Primitives;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.LoadScreens
@@ -47,8 +47,8 @@ namespace OpenRA.Mods.Common.LoadScreens
 				using (var stream = modData.DefaultFileSystem.Open(info["Image"]))
 					sheet = new Sheet(SheetType.BGRA, stream);
 
-				logo = new Sprite(sheet, new Rectangle(0, 0, 256, 256), TextureChannel.Alpha);
-				stripe = new Sprite(sheet, new Rectangle(256, 0, 256, 256), TextureChannel.Alpha);
+				logo = new Sprite(sheet, new Rectangle(0, 0, 256, 256), TextureChannel.RGBA);
+				stripe = new Sprite(sheet, new Rectangle(256, 0, 256, 256), TextureChannel.RGBA);
 				stripeRect = new Rectangle(0, r.Resolution.Height / 2 - 128, r.Resolution.Width, 256);
 				logoPos = new float2(r.Resolution.Width / 2 - 128, r.Resolution.Height / 2 - 128);
 			}

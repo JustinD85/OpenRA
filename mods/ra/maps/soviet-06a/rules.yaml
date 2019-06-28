@@ -72,11 +72,7 @@ SPY:
 	Buildable:
 		Prerequisites: ~disabled
 
-SNIPER:
-	Buildable:
-		Prerequisites: ~disabled
-
-HIJACKER:
+THF:
 	Buildable:
 		Prerequisites: ~disabled
 
@@ -154,10 +150,6 @@ HARV:
 AFLD:
 	ParatroopersPower@paratroopers:
 		DropItems: E1,E1,E1,E1,E1
-
-MONEYCRATE:
-	GiveCashCrateAction:
-		Amount: 2000
 
 V01:
 	SpawnActorOnDeath:

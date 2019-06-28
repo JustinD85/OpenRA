@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -16,6 +16,7 @@ using OpenRA.Graphics;
 using OpenRA.Mods.Common.Orders;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Orders;
+using OpenRA.Traits;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets
@@ -155,14 +156,15 @@ namespace OpenRA.Mods.Common.Widgets
 			{
 				BindButtonIcon(deployButton);
 
-				deployButton.IsDisabled = () => { UpdateStateIfNecessary(); return !selectedDeploys.Any(pair => pair.Trait.IsTraitEnabled()); };
+				deployButton.IsDisabled = () => { UpdateStateIfNecessary(); return !selectedDeploys.Any(pair => pair.Trait.CanIssueDeployOrder(pair.Actor)); };
 				deployButton.IsHighlighted = () => deployHighlighted > 0;
 				deployButton.OnClick = () =>
 				{
 					if (highlightOnButtonPress)
 						deployHighlighted = 2;
 
-					PerformDeployOrderOnSelection();
+					var queued = Game.GetModifierKeys().HasModifier(Modifiers.Shift);
+					PerformDeployOrderOnSelection(queued);
 				};
 
 				deployButton.OnKeyPress = ki => { deployHighlighted = 2; deployButton.OnClick(); };
@@ -207,12 +209,28 @@ namespace OpenRA.Mods.Common.Widgets
 			{
 				keyOverrides.AddHandler(e =>
 				{
-					// HACK: enable attack move to be triggered if the ctrl key is pressed
-					e.Modifiers &= ~Modifiers.Ctrl;
-					if (!attackMoveDisabled && attackMoveButton.Key.IsActivatedBy(e))
+					// HACK: allow attack move to be triggered if the ctrl key is pressed (assault move)
+					var eNoCtrl = e;
+					eNoCtrl.Modifiers &= ~Modifiers.Ctrl;
+
+					if (attackMoveButton != null && !attackMoveDisabled && attackMoveButton.Key.IsActivatedBy(eNoCtrl))
 					{
 						attackMoveButton.OnKeyPress(e);
 						return true;
+					}
+
+					// HACK: allow deploy to be triggered if the shift key is pressed (queued order)
+					if (e.Modifiers.HasModifier(Modifiers.Shift) && e.Event == KeyInputEvent.Down)
+					{
+						var eNoShift = e;
+						eNoShift.Modifiers &= ~Modifiers.Shift;
+
+						if (deployButton != null && !deployButton.IsDisabled() &&
+							deployButton.Key.IsActivatedBy(eNoShift))
+						{
+							deployButton.OnKeyPress(e);
+							return true;
+						}
 					}
 
 					return false;
@@ -267,14 +285,14 @@ namespace OpenRA.Mods.Common.Widgets
 				return;
 
 			selectedActors = world.Selection.Actors
-				.Where(a => a.Owner == world.LocalPlayer && a.IsInWorld)
+				.Where(a => a.Owner == world.LocalPlayer && a.IsInWorld && !a.IsDead)
 				.ToArray();
 
 			attackMoveDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<AttackMoveInfo>() && a.Info.HasTraitInfo<AutoTargetInfo>());
 			guardDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<GuardInfo>() && a.Info.HasTraitInfo<AutoTargetInfo>());
 			forceMoveDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<MobileInfo>() || a.Info.HasTraitInfo<AircraftInfo>());
 			forceAttackDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<AttackBaseInfo>());
-			scatterDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<MobileInfo>());
+			scatterDisabled = !selectedActors.Any(a => a.Info.HasTraitInfo<IMoveInfo>());
 
 			selectedDeploys = selectedActors
 				.SelectMany(a => a.TraitsImplementing<IIssueDeployOrder>()
@@ -302,13 +320,13 @@ namespace OpenRA.Mods.Common.Widgets
 			world.PlayVoiceForOrders(orders);
 		}
 
-		void PerformDeployOrderOnSelection()
+		void PerformDeployOrderOnSelection(bool queued)
 		{
 			UpdateStateIfNecessary();
 
 			var orders = selectedDeploys
-				.Where(pair => pair.Trait.IsTraitEnabled())
-				.Select(d => d.Trait.IssueDeployOrder(d.Actor))
+				.Where(pair => pair.Trait.CanIssueDeployOrder(pair.Actor))
+				.Select(d => d.Trait.IssueDeployOrder(d.Actor, queued))
 				.Where(d => d != null)
 				.ToArray();
 

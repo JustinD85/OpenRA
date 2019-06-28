@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,7 +9,6 @@
  */
 #endregion
 
-using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Activities;
 using OpenRA.Mods.Common;
@@ -23,27 +22,27 @@ namespace OpenRA.Mods.Cnc.Traits
 	[Desc("Deliver the unit in production via skylift.")]
 	public class ProductionAirdropInfo : ProductionInfo
 	{
+		[NotificationReference("Speech")]
 		public readonly string ReadyAudio = "Reinforce";
+
+		[ActorReference(typeof(AircraftInfo))]
 		[Desc("Cargo aircraft used for delivery. Must have the `Aircraft` trait.")]
-		[ActorReference(typeof(AircraftInfo))] public readonly string ActorType = "c17";
+		public readonly string ActorType = "c17";
 
 		public override object Create(ActorInitializer init) { return new ProductionAirdrop(init, this); }
 	}
 
 	class ProductionAirdrop : Production
 	{
-		readonly ProductionAirdropInfo info;
 		public ProductionAirdrop(ActorInitializer init, ProductionAirdropInfo info)
-			: base(init, info)
-		{
-			this.info = info;
-		}
+			: base(init, info) { }
 
 		public override bool Produce(Actor self, ActorInfo producee, string productionType, TypeDictionary inits)
 		{
 			if (IsTraitDisabled || IsTraitPaused)
 				return false;
 
+			var info = (ProductionAirdropInfo)Info;
 			var owner = self.Owner;
 			var aircraftInfo = self.World.Map.Rules.Actors[info.ActorType].TraitInfo<AircraftInfo>();
 

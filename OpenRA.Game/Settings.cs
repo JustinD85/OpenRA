@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -11,11 +11,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
-using System.Linq.Expressions;
 using OpenRA.Graphics;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA
@@ -42,9 +41,6 @@ namespace OpenRA
 		[Desc("Sets the internal port.")]
 		public int ListenPort = 1234;
 
-		[Desc("Sets the port advertised to the master server.")]
-		public int ExternalPort = 1234;
-
 		[Desc("Reports the game to the master server list.")]
 		public bool AdvertiseOnline = true;
 
@@ -63,11 +59,23 @@ namespace OpenRA
 		[Desc("Takes a comma separated list of IP addresses that are not allowed to join.")]
 		public string[] Ban = { };
 
+		[Desc("For dedicated servers only, allow anonymous clients to join.")]
+		public bool RequireAuthentication = false;
+
+		[Desc("For dedicated servers only, if non-empty, only allow authenticated players with these profile IDs to join.")]
+		public int[] ProfileIDWhitelist = { };
+
+		[Desc("For dedicated servers only, if non-empty, always reject players with these user IDs from joining.")]
+		public int[] ProfileIDBlacklist = { };
+
 		[Desc("For dedicated servers only, controls whether a game can be started with just one human player in the lobby.")]
 		public bool EnableSingleplayer = false;
 
 		[Desc("Query map information from the Resource Center if they are not available locally.")]
 		public bool QueryMapRepository = true;
+
+		[Desc("Enable client-side report generation to help debug desync errors.")]
+		public bool EnableSyncReports = false;
 
 		public string TimestampFormat = "s";
 
@@ -79,21 +87,14 @@ namespace OpenRA
 
 	public class DebugSettings
 	{
-		public bool BotDebug = false;
-		public bool LuaDebug = false;
+		[Desc("Display average FPS and tick/render times")]
 		public bool PerfText = false;
+
+		[Desc("Display a graph with various profiling traces")]
 		public bool PerfGraph = false;
 
-		[Desc("Amount of time required for triggering perf.log output.")]
-		public float LongTickThresholdMs = 1;
-
-		public bool SanityCheckUnsyncedCode = false;
+		[Desc("Numer of samples to average over when calculating tick and render times.")]
 		public int Samples = 25;
-
-		[Desc("Show incompatible games in server browser.")]
-		public bool IgnoreVersionMismatch = false;
-
-		public bool StrictActivityChecking = false;
 
 		[Desc("Check whether a newer version is available online.")]
 		public bool CheckVersion = true;
@@ -101,9 +102,35 @@ namespace OpenRA
 		[Desc("Allow the collection of anonymous data such as Operating System, .NET runtime, OpenGL version and language settings.")]
 		public bool SendSystemInformation = true;
 
+		[Desc("Version of sysinfo that the player last opted in or out of.")]
 		public int SystemInformationVersionPrompt = 0;
-		public string UUID = System.Guid.NewGuid().ToString();
+
+		[Desc("Sysinfo anonymous user identifier.")]
+		public string UUID = Guid.NewGuid().ToString();
+
+		[Desc("Enable hidden developer settings in the Advanced settings tab.")]
+		public bool DisplayDeveloperSettings = false;
+
+		[Desc("Display bot debug messages in the game chat.")]
+		public bool BotDebug = false;
+
+		[Desc("Display Lua debug messages in the game chat.")]
+		public bool LuaDebug = false;
+
+		[Desc("Enable the chat field during replays to allow use of console commands.")]
 		public bool EnableDebugCommandsInReplays = false;
+
+		[Desc("Amount of time required for triggering perf.log output.")]
+		public float LongTickThresholdMs = 1;
+
+		[Desc("Throw an exception if the world sync hash changes while evaluating user input.")]
+		public bool SyncCheckUnsyncedCode = false;
+
+		[Desc("Throw an exception if the world sync hash changes while evaluating BotModules.")]
+		public bool SyncCheckBotModuleCode = false;
+
+		[Desc("Throw an exception if an actor activity is ticked after it has been marked as completed.")]
+		public bool StrictActivityChecking = false;
 	}
 
 	public class GraphicSettings
@@ -131,13 +158,14 @@ namespace OpenRA
 		[Desc("Disable high resolution DPI scaling on Windows operating systems.")]
 		public bool DisableWindowsDPIScaling = true;
 
+		[Desc("Disable separate OpenGL render thread on Windows operating systems.")]
+		public bool DisableWindowsRenderThread = true;
+
 		public int BatchSize = 8192;
 		public int SheetSize = 2048;
 
 		public string Language = "english";
 		public string DefaultLanguage = "english";
-
-		public ImageFormat ScreenshotFormat = ImageFormat.Png;
 	}
 
 	public class SoundSettings
@@ -159,8 +187,9 @@ namespace OpenRA
 	{
 		[Desc("Sets the player nickname for in-game and IRC chat.")]
 		public string Name = "Newbie";
-		public HSLColor Color = new HSLColor(75, 255, 180);
+		public Color Color = Color.FromAhsl(75, 255, 180);
 		public string LastServer = "localhost:1234";
+		public Color[] CustomColors = { };
 	}
 
 	public class GameSettings
@@ -185,6 +214,9 @@ namespace OpenRA
 		public bool DrawTargetLine = true;
 
 		public bool AllowDownloading = true;
+
+		[Desc("Filename of the authentication profile to use.")]
+		public string AuthProfile = "player.oraid";
 
 		public bool AllowZoom = true;
 		public Modifiers ZoomModifier = Modifiers.Ctrl;
@@ -235,18 +267,19 @@ namespace OpenRA
 
 				if (File.Exists(settingsFile))
 				{
-					yamlCache = MiniYaml.FromFile(settingsFile);
+					yamlCache = MiniYaml.FromFile(settingsFile, false);
 					foreach (var yamlSection in yamlCache)
 					{
 						object settingsSection;
-						if (Sections.TryGetValue(yamlSection.Key, out settingsSection))
+						if (yamlSection.Key != null && Sections.TryGetValue(yamlSection.Key, out settingsSection))
 							LoadSectionYaml(yamlSection.Value, settingsSection);
 					}
 
 					var keysNode = yamlCache.FirstOrDefault(n => n.Key == "Keys");
 					if (keysNode != null)
 						foreach (var node in keysNode.Value.Nodes)
-							Keys[node.Key] = FieldLoader.GetValue<Hotkey>(node.Key, node.Value.Value);
+							if (node.Key != null)
+								Keys[node.Key] = FieldLoader.GetValue<Hotkey>(node.Key, node.Value.Value);
 				}
 
 				// Override with commandline args

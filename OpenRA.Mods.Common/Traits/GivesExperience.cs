@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -41,7 +41,7 @@ namespace OpenRA.Mods.Common.Traits
 			this.info = info;
 		}
 
-		public void Killed(Actor self, AttackInfo e)
+		void INotifyKilled.Killed(Actor self, AttackInfo e)
 		{
 			if (e.Attacker == null || e.Attacker.Disposed)
 				return;
@@ -56,7 +56,7 @@ namespace OpenRA.Mods.Common.Traits
 				: valued != null ? valued.Cost : 0;
 
 			var experienceModifier = self.TraitsImplementing<IGivesExperienceModifier>().Select(x => x.GetGivesExperienceModifier());
-			Util.ApplyPercentageModifiers(exp, experienceModifier);
+			exp = Util.ApplyPercentageModifiers(exp, experienceModifier);
 
 			var killer = e.Attacker.TraitOrDefault<GainsExperience>();
 			if (killer != null)

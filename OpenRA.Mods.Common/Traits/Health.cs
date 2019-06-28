@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,17 +9,23 @@
  */
 #endregion
 
+using System.Collections.Generic;
 using System.Linq;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
 {
-	public class HealthInfo : ITraitInfo, UsesInit<HealthInit>, IRulesetLoaded
+	public class HealthInfo : IHealthInfo, IRulesetLoaded, IEditorActorOptions
 	{
 		[Desc("HitPoints")]
 		public readonly int HP = 0;
+
 		[Desc("Trigger interfaces such as AnnounceOnKill?")]
 		public readonly bool NotifyAppliedDamage = true;
+
+		[Desc("Display order for the health slider in the map editor")]
+		public readonly int EditorHealthDisplayOrder = 2;
 
 		public virtual object Create(ActorInitializer init) { return new Health(init, this); }
 
@@ -28,13 +34,34 @@ namespace OpenRA.Mods.Common.Traits
 			if (!ai.HasTraitInfo<HitShapeInfo>())
 				throw new YamlException("Actors with Health need at least one HitShape trait!");
 		}
+
+		int IHealthInfo.MaxHP { get { return HP; } }
+
+		IEnumerable<EditorActorOption> IEditorActorOptions.ActorOptions(ActorInfo ai, World world)
+		{
+			yield return new EditorActorSlider("Health", EditorHealthDisplayOrder, 0, 100, 5,
+				actor =>
+				{
+					var init = actor.Init<HealthInit>();
+					return init != null ? init.Value(world) : 100;
+				},
+				(actor, value) => actor.ReplaceInit(new HealthInit((int)value)));
+		}
 	}
 
-	public class Health : IHealth, ISync, ITick
+	public class Health : IHealth, ISync, ITick, INotifyCreated, INotifyOwnerChanged
 	{
 		public readonly HealthInfo Info;
+		INotifyDamageStateChanged[] notifyDamageStateChanged;
+		INotifyDamage[] notifyDamage;
+		INotifyDamage[] notifyDamagePlayer;
+		IDamageModifier[] damageModifiers;
+		IDamageModifier[] damageModifiersPlayer;
+		INotifyKilled[] notifyKilled;
+		INotifyKilled[] notifyKilledPlayer;
 
-		[Sync] int hp;
+		[Sync]
+		int hp;
 
 		public int DisplayHP { get; private set; }
 
@@ -62,13 +89,13 @@ namespace OpenRA.Mods.Common.Traits
 				if (hp <= 0)
 					return DamageState.Dead;
 
-				if (hp < MaxHP * 0.25f)
+				if (hp * 100L < MaxHP * 25L)
 					return DamageState.Critical;
 
-				if (hp < MaxHP * 0.5f)
+				if (hp * 100L < MaxHP * 50L)
 					return DamageState.Heavy;
 
-				if (hp < MaxHP * 0.75f)
+				if (hp * 100L < MaxHP * 75L)
 					return DamageState.Medium;
 
 				if (hp == MaxHP)
@@ -76,6 +103,24 @@ namespace OpenRA.Mods.Common.Traits
 
 				return DamageState.Light;
 			}
+		}
+
+		void INotifyCreated.Created(Actor self)
+		{
+			notifyDamageStateChanged = self.TraitsImplementing<INotifyDamageStateChanged>().ToArray();
+			notifyDamage = self.TraitsImplementing<INotifyDamage>().ToArray();
+			notifyDamagePlayer = self.Owner.PlayerActor.TraitsImplementing<INotifyDamage>().ToArray();
+			damageModifiers = self.TraitsImplementing<IDamageModifier>().ToArray();
+			damageModifiersPlayer = self.Owner.PlayerActor.TraitsImplementing<IDamageModifier>().ToArray();
+			notifyKilled = self.TraitsImplementing<INotifyKilled>().ToArray();
+			notifyKilledPlayer = self.Owner.PlayerActor.TraitsImplementing<INotifyKilled>().ToArray();
+		}
+
+		void INotifyOwnerChanged.OnOwnerChanged(Actor self, Player oldOwner, Player newOwner)
+		{
+			notifyDamagePlayer = newOwner.PlayerActor.TraitsImplementing<INotifyDamage>().ToArray();
+			damageModifiersPlayer = newOwner.PlayerActor.TraitsImplementing<IDamageModifier>().ToArray();
+			notifyKilledPlayer = newOwner.PlayerActor.TraitsImplementing<INotifyKilled>().ToArray();
 		}
 
 		public void Resurrect(Actor self, Actor repairer)
@@ -93,17 +138,21 @@ namespace OpenRA.Mods.Common.Traits
 				PreviousDamageState = DamageState.Dead,
 			};
 
-			foreach (var nd in self.TraitsImplementing<INotifyDamage>()
-					.Concat(self.Owner.PlayerActor.TraitsImplementing<INotifyDamage>()))
+			foreach (var nd in notifyDamage)
+				nd.Damaged(self, ai);
+			foreach (var nd in notifyDamagePlayer)
 				nd.Damaged(self, ai);
 
-			foreach (var nd in self.TraitsImplementing<INotifyDamageStateChanged>())
+			foreach (var nd in notifyDamageStateChanged)
 				nd.DamageStateChanged(self, ai);
 
 			if (Info.NotifyAppliedDamage && repairer != null && repairer.IsInWorld && !repairer.IsDead)
-				foreach (var nd in repairer.TraitsImplementing<INotifyAppliedDamage>()
-						.Concat(repairer.Owner.PlayerActor.TraitsImplementing<INotifyAppliedDamage>()))
+			{
+				foreach (var nd in repairer.TraitsImplementing<INotifyAppliedDamage>())
 					nd.AppliedDamage(repairer, self, ai);
+				foreach (var nd in repairer.Owner.PlayerActor.TraitsImplementing<INotifyAppliedDamage>())
+					nd.AppliedDamage(repairer, self, ai);
+			}
 		}
 
 		public void InflictDamage(Actor self, Actor attacker, Damage damage, bool ignoreModifiers)
@@ -117,8 +166,8 @@ namespace OpenRA.Mods.Common.Traits
 			// Apply any damage modifiers
 			if (!ignoreModifiers && damage.Value > 0)
 			{
-				var modifiers = self.TraitsImplementing<IDamageModifier>()
-					.Concat(self.Owner.PlayerActor.TraitsImplementing<IDamageModifier>())
+				var modifiers = damageModifiers
+					.Concat(damageModifiersPlayer)
 					.Select(t => t.GetDamageModifier(attacker, damage));
 
 				damage = new Damage(Util.ApplyPercentageModifiers(damage.Value, modifiers), damage.DamageTypes);
@@ -134,23 +183,28 @@ namespace OpenRA.Mods.Common.Traits
 				PreviousDamageState = oldState,
 			};
 
-			foreach (var nd in self.TraitsImplementing<INotifyDamage>()
-					.Concat(self.Owner.PlayerActor.TraitsImplementing<INotifyDamage>()))
+			foreach (var nd in notifyDamage)
+				nd.Damaged(self, ai);
+			foreach (var nd in notifyDamagePlayer)
 				nd.Damaged(self, ai);
 
 			if (DamageState != oldState)
-				foreach (var nd in self.TraitsImplementing<INotifyDamageStateChanged>())
+				foreach (var nd in notifyDamageStateChanged)
 					nd.DamageStateChanged(self, ai);
 
 			if (Info.NotifyAppliedDamage && attacker != null && attacker.IsInWorld && !attacker.IsDead)
-				foreach (var nd in attacker.TraitsImplementing<INotifyAppliedDamage>()
-						.Concat(attacker.Owner.PlayerActor.TraitsImplementing<INotifyAppliedDamage>()))
+			{
+				foreach (var nd in attacker.TraitsImplementing<INotifyAppliedDamage>())
 					nd.AppliedDamage(attacker, self, ai);
+				foreach (var nd in attacker.Owner.PlayerActor.TraitsImplementing<INotifyAppliedDamage>())
+					nd.AppliedDamage(attacker, self, ai);
+			}
 
 			if (hp == 0)
 			{
-				foreach (var nd in self.TraitsImplementing<INotifyKilled>()
-						.Concat(self.Owner.PlayerActor.TraitsImplementing<INotifyKilled>()))
+				foreach (var nd in notifyKilled)
+					nd.Killed(self, ai);
+				foreach (var nd in notifyKilledPlayer)
 					nd.Killed(self, ai);
 
 				if (RemoveOnDeath)
@@ -163,24 +217,25 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		public void Kill(Actor self, Actor attacker)
+		public void Kill(Actor self, Actor attacker, BitSet<DamageType> damageTypes)
 		{
-			InflictDamage(self, attacker, new Damage(MaxHP), true);
+			InflictDamage(self, attacker, new Damage(MaxHP, damageTypes), true);
 		}
 
 		void ITick.Tick(Actor self)
 		{
-			if (hp > DisplayHP)
+			if (hp >= DisplayHP)
 				DisplayHP = hp;
-
-			if (DisplayHP > hp)
+			else
 				DisplayHP = (2 * DisplayHP + hp) / 3;
 		}
 	}
 
 	public class HealthInit : IActorInit<int>
 	{
-		[FieldFromYamlKey] readonly int value = 100;
+		[FieldFromYamlKey]
+		readonly int value = 100;
+
 		readonly bool allowZero;
 		public HealthInit() { }
 		public HealthInit(int init)

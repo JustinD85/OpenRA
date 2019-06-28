@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Linq;
 using OpenRA.GameRules;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Warheads
@@ -28,15 +29,8 @@ namespace OpenRA.Mods.Common.Warheads
 		[Desc("Ranges at which each Falloff step is defined. Overrides Spread.")]
 		public WDist[] Range = null;
 
-		[Desc("Extra search radius beyond maximum spread. If set to a negative value (default), it will automatically scale to the largest health shape.",
-			"Custom overrides should not be necessary under normal circumstances.")]
-		public WDist VictimScanRadius = new WDist(-1);
-
 		void IRulesetLoaded<WeaponInfo>.RulesetLoaded(Ruleset rules, WeaponInfo info)
 		{
-			if (VictimScanRadius < WDist.Zero)
-				VictimScanRadius = Util.MinimumRequiredVictimScanRadius(rules);
-
 			if (Range != null)
 			{
 				if (Range.Length != 1 && Range.Length != Falloff.Length)
@@ -52,32 +46,27 @@ namespace OpenRA.Mods.Common.Warheads
 
 		public override void DoImpact(WPos pos, Actor firedBy, IEnumerable<int> damageModifiers)
 		{
-			var world = firedBy.World;
-
-			var debugVis = world.WorldActor.TraitOrDefault<DebugVisualizations>();
+			var debugVis = firedBy.World.WorldActor.TraitOrDefault<DebugVisualizations>();
 			if (debugVis != null && debugVis.CombatGeometry)
-				world.WorldActor.Trait<WarheadDebugOverlay>().AddImpact(pos, Range, DebugOverlayColor);
+				firedBy.World.WorldActor.Trait<WarheadDebugOverlay>().AddImpact(pos, Range, DebugOverlayColor);
 
-			// This only finds actors where the center is within the search radius,
-			// so we need to search beyond the maximum spread to account for actors with large health radius
-			var hitActors = world.FindActorsInCircle(pos, Range[Range.Length - 1] + VictimScanRadius);
-
-			foreach (var victim in hitActors)
+			foreach (var victim in firedBy.World.FindActorsOnCircle(pos, Range[Range.Length - 1]))
 			{
-				// Cannot be damaged without a Health trait
-				var healthInfo = victim.Info.TraitInfoOrDefault<HealthInfo>();
-				if (healthInfo == null)
+				if (!IsValidAgainst(victim, firedBy))
 					continue;
+
+				var closestActiveShape = victim.TraitsImplementing<HitShape>()
+					.Where(Exts.IsTraitEnabled)
+					.Select(s => Pair.New(s, s.Info.Type.DistanceFromEdge(pos, victim)))
+					.MinByOrDefault(s => s.Second);
 
 				// Cannot be damaged without an active HitShape
-				var activeShapes = victim.TraitsImplementing<HitShape>().Where(Exts.IsTraitEnabled);
-				if (!activeShapes.Any())
+				if (closestActiveShape.First == null)
 					continue;
 
-				var distance = activeShapes.Min(t => t.Info.Type.DistanceFromEdge(pos, victim));
-				var localModifiers = damageModifiers.Append(GetDamageFalloff(distance.Length));
-
-				DoImpact(victim, firedBy, localModifiers);
+				var localModifiers = damageModifiers.Append(GetDamageFalloff(closestActiveShape.Second.Length));
+				var damage = Util.ApplyPercentageModifiers(Damage, localModifiers.Append(DamageVersus(victim, closestActiveShape.First.Info)));
+				victim.InflictDamage(firedBy, new Damage(damage, DamageTypes));
 			}
 		}
 

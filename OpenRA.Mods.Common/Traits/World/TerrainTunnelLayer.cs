@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -68,21 +68,22 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		bool ICustomMovementLayer.EnabledForActor(ActorInfo a, MobileInfo mi) { return enabled; }
+		bool ICustomMovementLayer.EnabledForActor(ActorInfo a, LocomotorInfo li) { return enabled; }
 		byte ICustomMovementLayer.Index { get { return CustomMovementLayerType.Tunnel; } }
 		bool ICustomMovementLayer.InteractsWithDefaultLayer { get { return false; } }
+		bool ICustomMovementLayer.ReturnToGroundLayerOnIdle { get { return true; } }
 
 		WPos ICustomMovementLayer.CenterOfCell(CPos cell)
 		{
 			return cellCenters[cell];
 		}
 
-		int ICustomMovementLayer.EntryMovementCost(ActorInfo a, MobileInfo mi, CPos cell)
+		int ICustomMovementLayer.EntryMovementCost(ActorInfo a, LocomotorInfo li, CPos cell)
 		{
 			return portals.Contains(cell) ? 0 : int.MaxValue;
 		}
 
-		int ICustomMovementLayer.ExitMovementCost(ActorInfo a, MobileInfo mi, CPos cell)
+		int ICustomMovementLayer.ExitMovementCost(ActorInfo a, LocomotorInfo li, CPos cell)
 		{
 			return portals.Contains(cell) ? 0 : int.MaxValue;
 		}

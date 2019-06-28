@@ -7,12 +7,11 @@ World:
 	-SpawnMPUnits:
 	-MPStartLocations:
 	MapBuildRadius:
-		AllyBuildRadiusCheckboxLocked: True
-		AllyBuildRadiusCheckboxEnabled: False
-		BuildRadiusCheckboxLocked: True
-		BuildRadiusCheckboxEnabled: True
+		AllyBuildRadiusCheckboxVisible: False
+		BuildRadiusCheckboxVisible: False
 	MapOptions:
 		TechLevelDropdownLocked: True
+		TechLevelDropdownVisible: False
 		TechLevel: unrestricted
 
 UNITCRATE:
@@ -23,9 +22,9 @@ UNITCRATE:
 	GiveUnitCrateAction@ftrk:
 		SelectionShares: 6
 		Units: ftrk
-	GiveUnitCrateAction@harv:
+	GiveUnitCrateAction@dtrk:
 		SelectionShares: 1
-		Units: harv
+		Units: dtrk
 	GiveUnitCrateAction@shok:
 		SelectionShares: 1
 		Units: shok
@@ -43,17 +42,16 @@ APC:
 		RequiredForShortGame: true
 	-AttackMove:
 
-HARV:
+DTRK:
 	Tooltip:
 		Name: Bomb Truck
 	Health:
 		HP: 10000
+	Armor:
+		Type: Heavy
 	Explodes:
 		Weapon: CrateNuke
 		EmptyWeapon: CrateNuke
-	AttackSuicides:
-	Buildable:
-		Description: Explodes like a damn nuke!
 
 SHOK:
 	Health:
@@ -69,11 +67,19 @@ Player:
 	Shroud:
 		FogCheckboxLocked: True
 		FogCheckboxEnabled: False
+		FogCheckboxVisible: False
 		ExploredMapCheckboxLocked: True
 		ExploredMapCheckboxEnabled: True
+		ExploredMapCheckboxVisible: False
 	PlayerResources:
-		DefaultCashLocked: True
+		DefaultCashDropdownLocked: True
+		DefaultCashDropdownVisible: False
 		DefaultCash: 5000
 	LobbyPrerequisiteCheckbox@GLOBALBOUNTY:
 		Enabled: False
 		Locked: True
+		Visible: False
+	LobbyPrerequisiteCheckbox@GLOBALFACTUNDEPLOY:
+		Visible: False
+	LobbyPrerequisiteCheckbox@REUSABLEENGINEERS:
+		Visible: False

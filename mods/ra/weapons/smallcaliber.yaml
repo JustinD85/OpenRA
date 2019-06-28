@@ -25,7 +25,7 @@ ZSU-23:
 	Inherits: ^AACannon
 	Burst: 2
 	BurstDelays: 0
-	ReloadDelay: 5
+	ReloadDelay: 6
 	Range: 10c0
 	Projectile: Bullet
 		Speed: 3c340
@@ -91,6 +91,7 @@ FLAK-23-AG:
 			Light: 40
 			Heavy: 10
 			Concrete: 10
+		DamageTypes: Prone50Percent, TriggerProne, DefaultDeath
 
 Vulcan:
 	Inherits: ^HeavyMG
@@ -265,14 +266,14 @@ M60mg:
 	Range: 2c512
 	Report: gun5.aud
 	ValidTargets: Ground, Infantry
-	InvalidTargets: Vehicle, Water, Structure, Wall, Husk
+	InvalidTargets: Vehicle, Water, Structure, Wall, Husk, Mine
 	Projectile: Bullet
 		Speed: 1c682
 	Warhead@1Dam: SpreadDamage
 		Spread: 42
 		Damage: 15000
 		ValidTargets: Barrel, Infantry
-		DamageTypes: Prone50Percent, TriggerProne, BulletDeath
+		DamageTypes: Prone50Percent, TriggerProne, DefaultDeath
 
 SilencedPPK:
 	Inherits: ^SnipeWeapon

@@ -11,6 +11,8 @@ DOG:
 	Tooltip:
 		Name: Attack Dog
 		GenericName: Dog
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Selectable:
 		Bounds: 12,17,-1,-4
 		DecorationBounds: 12,17,-1,-4
@@ -20,18 +22,27 @@ DOG:
 	Mobile:
 		Speed: 99
 		Voice: Move
+		PauseOnCondition: attack-cooldown || eating
 	Guard:
 		Voice: Move
 	Passenger:
 		Voice: Move
 	RevealsShroud:
-		Range: 5c0
+		Range: 5c512
 	Armament:
 		Weapon: DogJaw
+		ReloadingCondition: attack-cooldown
+	-AttackFrontal:
 	AttackLeap:
 		Voice: Attack
+		PauseOnCondition: attacking || attack-cooldown
 	AttackMove:
 		Voice: Move
+	GrantConditionOnAttack:
+		Condition: eating
+		RevokeDelay: 45
+	GrantConditionWhileAiming:
+		Condition: run
 	AutoTarget:
 		InitialStance: AttackAnything
 	AutoTargetPriority@DEFAULT:
@@ -39,11 +50,19 @@ DOG:
 	Targetable:
 		TargetTypes: Ground, Infantry
 	WithInfantryBody:
-		DefaultAttackSequence: shoot
+		MoveSequence: walk
 		StandSequences: stand
+		DefaultAttackSequence: eat
+		RequiresCondition: !run
+	WithInfantryBody@RUN:
+		MoveSequence: run
+		RequiresCondition: run
+	SpeedMultiplier:
+		Modifier: 150
+		RequiresCondition: run
 	IgnoresDisguise:
 	DetectCloaked:
-		CloakTypes: Cloak, Hijacker
+		CloakTypes: Cloak, Thief
 	Voiced:
 		VoiceSet: DogVoice
 	-TakeCover:
@@ -63,6 +82,8 @@ E1:
 		Cost: 100
 	Tooltip:
 		Name: Rifle Infantry
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 5000
 	Armament@PRIMARY:
@@ -71,9 +92,12 @@ E1:
 		Name: garrisoned
 		Weapon: Vulcan
 		MuzzleSequence: garrison-muzzle
-	AttackFrontal:
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
+		RequiresCondition: !parachute
+	WithInfantryBody@PARACHUTE:
+		StandSequences: parachute
+		RequiresCondition: parachute
 	ProducibleWithLevel:
 		Prerequisites: barracks.upgraded
 
@@ -99,6 +123,8 @@ E2:
 		Cost: 160
 	Tooltip:
 		Name: Grenadier
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 5000
 	Mobile:
@@ -113,12 +139,16 @@ E2:
 		FireDelay: 15
 	TakeCover:
 		ProneOffset: 256,64,-331
-	AttackFrontal:
 	WithInfantryBody:
 		DefaultAttackSequence: throw
+		RequiresCondition: !parachute
+	WithInfantryBody@PARACHUTE:
+		StandSequences: parachute
+		RequiresCondition: parachute
 	Explodes:
 		Weapon: UnitExplodeSmall
 		EmptyWeapon: UnitExplodeSmall
+		DamageSource: Killer
 	ProducibleWithLevel:
 		Prerequisites: barracks.upgraded
 
@@ -137,6 +167,8 @@ E3:
 		Cost: 300
 	Tooltip:
 		Name: Rocket Soldier
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 4500
 	Armament@PRIMARY:
@@ -151,9 +183,12 @@ E3:
 		Weapon: Dragon
 	TakeCover:
 		ProneOffset: 384,0,-395
-	AttackFrontal:
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
+		RequiresCondition: !parachute
+	WithInfantryBody@PARACHUTE:
+		StandSequences: parachute
+		RequiresCondition: parachute
 	ProducibleWithLevel:
 		Prerequisites: barracks.upgraded
 	AutoTarget:
@@ -181,6 +216,8 @@ E4:
 		Cost: 300
 	Tooltip:
 		Name: Flamethrower
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 4000
 	Armament@PRIMARY:
@@ -192,13 +229,16 @@ E4:
 		Weapon: Flamer
 	TakeCover:
 		ProneOffset: 160,0,-288
-	AttackFrontal:
 	Explodes:
 		Weapon: VisualExplode
 		EmptyWeapon: VisualExplode
 		Chance: 50
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
+		RequiresCondition: !parachute
+	WithInfantryBody@PARACHUTE:
+		StandSequences: parachute
+		RequiresCondition: parachute
 	ProducibleWithLevel:
 		Prerequisites: barracks.upgraded
 
@@ -211,20 +251,42 @@ E6:
 		Prerequisites: ~barracks, ~techlevel.infonly
 		Description: Infiltrates and captures\nenemy structures.\n  Unarmed
 	Valued:
-		Cost: 500
+		Cost: 400
 	Tooltip:
 		Name: Engineer
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
+	WithInfantryBody:
+		RequiresCondition: !parachute
+	WithInfantryBody@PARACHUTE:
+		StandSequences: parachute
+		RequiresCondition: parachute
 	Passenger:
 		PipType: Yellow
 	EngineerRepair:
 	RepairsBridges:
-	ExternalCaptures:
+	CaptureManager:
+	GrantConditionOnPrerequisite@GLOBALREUSABLEENGINEER:
+		Condition: global-reusable-engineers
+		Prerequisites: global-reusable-engineers
+	Captures:
+		RequiresCondition: !global-reusable-engineers
 		CaptureTypes: building
 		PlayerExperience: 25
+		CaptureDelay: 200
+	Captures@REUSABLE:
+		RequiresCondition: global-reusable-engineers
+		CaptureTypes: building
+		PlayerExperience: 25
+		CaptureDelay: 375
+		ConsumedByCapture: False
+		EnterCursor: ability
+		EnterBlockedCursor: move-blocked
 	Voiced:
 		VoiceSet: EngineerVoice
 	Selectable:
 		Priority: 5
+	-AttackFrontal:
 
 SPY:
 	Inherits: ^Soldier
@@ -241,18 +303,21 @@ SPY:
 	DisguiseTooltip:
 		Name: Spy
 		GenericName: Soldier
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	-Guard:
 	Mobile:
 		Voice: Move
 	RevealsShroud:
 		Range: 5c0
 	Passenger:
-		PipType: Yellow
+		PipType: Blue
 		Voice: Move
 	Disguise:
 		DisguisedCondition: disguise
 	Infiltrates:
 		Types: SpyInfiltrate
+		Notification: BuildingInfiltrated
 		PlayerExperience: 50
 	AutoTarget:
 		InitialStance: HoldFire
@@ -272,10 +337,9 @@ SPY:
 		RequiresCondition: disguise
 	IgnoresDisguise:
 	DetectCloaked:
-		CloakTypes: Cloak, Hijacker
+		CloakTypes: Cloak, Thief
 	Armament:
 		Weapon: SilencedPPK
-	AttackFrontal:
 	AttackMove:
 		Voice: Move
 	Voiced:
@@ -308,6 +372,8 @@ E7:
 		Cost: 1200
 	Tooltip:
 		Name: Tanya
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 10000
 	Mobile:
@@ -331,14 +397,17 @@ E7:
 		Name: garrisoned
 		Weapon: Colt45
 		MuzzleSequence: garrison-muzzle
-	AttackFrontal:
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
 		StandSequences: stand
-	AnnounceOnBuild:
+	ExternalCondition@PRODUCED:
+		Condition: produced
+	VoiceAnnouncement:
+		RequiresCondition: produced
+		Voice: Build
 	AnnounceOnKill:
 	DetectCloaked:
-		CloakTypes: Cloak, Hijacker
+		CloakTypes: Cloak, Thief
 	Voiced:
 		VoiceSet: TanyaVoice
 	ProducibleWithLevel:
@@ -356,20 +425,24 @@ MEDI:
 		Cost: 200
 	Tooltip:
 		Name: Medic
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 6000
+	Mobile:
+		Speed: 50
 	RevealsShroud:
 		Range: 3c0
 	Passenger:
-		PipType: Yellow
+		PipType: Blue
 	Armament:
 		Weapon: Heal
 		Cursor: heal
 		OutsideRangeCursor: heal
 		TargetStances: Ally
 		ForceTargetStances: None
-	AttackFrontal:
 	WithInfantryBody:
+		IdleSequences: idle
 		StandSequences: stand
 		DefaultAttackSequence: heal
 	Voiced:
@@ -390,14 +463,17 @@ MECH:
 		Cost: 500
 	Tooltip:
 		Name: Mechanic
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 8000
 	Mobile:
+		Speed: 50
 		Voice: Move
 	RevealsShroud:
 		Range: 3c0
 	Passenger:
-		PipType: Yellow
+		PipType: Blue
 		Voice: Move
 	Armament:
 		Weapon: Repair
@@ -406,18 +482,25 @@ MECH:
 		TargetStances: Ally
 		ForceTargetStances: None
 	AttackFrontal:
-		Voice: Move
+		Voice: Action
+	CaptureManager:
 	Captures:
 		CaptureTypes: husk
 		PlayerExperience: 25
+	Infiltrates:
+		Types: Husk
+		ValidStances: Ally
+		EnterCursor: goldwrench
+		PlayerExperience: 25
 	WithInfantryBody:
+		IdleSequences: idle
 		DefaultAttackSequence: repair
 		StandSequences: stand
 	Voiced:
 		VoiceSet: MechanicVoice
 	AutoTarget:
 	AutoTargetPriority@DEFAULT:
-		ValidTargets: Vehicle
+		ValidTargets: Vehicle, Ship
 
 EINSTEIN:
 	Inherits: ^CivInfantry
@@ -476,51 +559,37 @@ GNRL:
 
 THF:
 	Inherits: ^Soldier
-	Valued:
-		Cost: 400
-	Tooltip:
-		Name: Thief
-	RevealsShroud:
-		Range: 5c0
-	Passenger:
-		PipType: Yellow
-	Infiltrates:
-		InfiltrateTypes: Cash
-		PlayerExperience: 50
-	Voiced:
-		VoiceSet: ThiefVoice
-	WithInfantryBody:
-		-IdleSequences:
-		StandSequences: stand
-	Buildable:
-		Description: Steals enemy credits.\n  Unarmed
-
-HIJACKER:
-	Inherits: ^Soldier
 	Buildable:
 		Queue: Infantry
 		BuildAtProductionType: Soldier
 		BuildPaletteOrder: 110
 		Prerequisites: ~barr, fix, ~techlevel.medium
-		Description: Hijacks enemy vehicles.\n  Unarmed
+		Description: Steals enemy credits.\nHijacks enemy vehicles.\n  Unarmed
 	Valued:
 		Cost: 500
 	Tooltip:
-		Name: Hijacker
+		Name: Thief
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 5000
 	RevealsShroud:
 		Range: 5c0
 	Passenger:
-		PipType: Yellow
+		PipType: Blue
+	CaptureManager:
 	Captures:
 		CaptureTypes: vehicle
+		PlayerExperience: 50
+	Infiltrates:
+		Types: ThiefInfiltrate
+		Notification: BuildingInfiltrated
 		PlayerExperience: 50
 	Voiced:
 		VoiceSet: ThiefVoice
 	-TakeCover:
 	WithInfantryBody:
-		-IdleSequences:
+		IdleSequences: idle
 		StandSequences: stand
 	Crushable:
 		WarnProbability: 95
@@ -528,14 +597,15 @@ HIJACKER:
 		InitialDelay: 250
 		CloakDelay: 120
 		UncloakOn: Attack, Unload, Infiltrate, Demolish, Move
-		CloakTypes: Cloak, Hijacker
+		CloakTypes: Cloak, Thief
 		IsPlayerPalette: true
-		RequiresCondition: !cloak-force-disabled
+		PauseOnCondition: cloak-force-disabled
 	GrantConditionOnDamageState@UNCLOAK:
 		Condition: cloak-force-disabled
 		ValidDamageStates: Critical
 	Mobile:
-		Speed: 85
+		Speed: 71
+	-AttackFrontal:
 
 SHOK:
 	Inherits: ^Soldier
@@ -547,9 +617,11 @@ SHOK:
 		Prerequisites: ~barr, stek, tsla, ~infantry.russia, ~techlevel.high
 		Description: Elite infantry with portable Tesla coils.\n  Strong vs Infantry, Vehicles\n  Weak vs Aircraft
 	Valued:
-		Cost: 300
+		Cost: 350
 	Tooltip:
 		Name: Shock Trooper
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Health:
 		HP: 5000
 	Mobile:
@@ -574,6 +646,10 @@ SHOK:
 		Voice: Move
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
+		RequiresCondition: !parachute
+	WithInfantryBody@PARACHUTE:
+		StandSequences: parachute
+		RequiresCondition: parachute
 	Voiced:
 		VoiceSet: ShokVoice
 	ProducibleWithLevel:
@@ -585,6 +661,8 @@ SNIPER:
 		Cost: 700
 	Tooltip:
 		Name: Sniper
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Infantry
 		BuildAtProductionType: Soldier
@@ -608,7 +686,6 @@ SNIPER:
 		Name: garrisoned
 		Weapon: Sniper
 		MuzzleSequence: garrison-muzzle
-	AttackFrontal:
 	WithInfantryBody:
 		DefaultAttackSequence: shoot
 	Cloak:
@@ -618,12 +695,12 @@ SNIPER:
 		UncloakSound:
 		UncloakOn: Attack, Unload, Infiltrate, Demolish, Move
 		IsPlayerPalette: true
-		RequiresCondition: !cloak-force-disabled
+		PauseOnCondition: cloak-force-disabled
 	GrantConditionOnDamageState@UNCLOAK:
 		Condition: cloak-force-disabled
 		ValidDamageStates: Critical
 	DetectCloaked:
-		CloakTypes: Cloak, Hijacker
+		CloakTypes: Cloak, Thief
 		Range: 6c0
 	-MustBeDestroyed:
 	ProducibleWithLevel:
@@ -636,6 +713,8 @@ Zombie:
 		Cost: 100
 	Tooltip:
 		Name: Zombie
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Infantry
 		BuildAtProductionType: Soldier
@@ -648,7 +727,6 @@ Zombie:
 		Speed: 42
 	AutoTarget:
 		ScanRadius: 5
-	AttackFrontal:
 	WithInfantryBody:
 		DefaultAttackSequence: bite
 		IdleSequences: idle1
@@ -666,6 +744,8 @@ Ant:
 	Tooltip:
 		Name: Giant Ant
 		GenericName: Ant
+	UpdatesPlayerStatistics:
+		AddToArmyValue: true
 	Buildable:
 		Queue: Infantry
 		BuildAtProductionType: Soldier
@@ -681,7 +761,7 @@ Ant:
 	Mobile:
 		Speed: 99
 		TurnSpeed: 12
-		SharesCell: no
+		Locomotor: lighttracked
 	-Crushable:
 	AutoTarget:
 		ScanRadius: 5
@@ -699,3 +779,51 @@ Ant:
 	HitShape:
 		Type: Circle
 			Radius: 469
+
+FireAnt:
+	Inherits: Ant
+	Tooltip:
+		Name: Fire Ant
+		GenericVisibility: none
+	Mobile:
+		Speed: 80
+	Armament:
+		Weapon: AntFireball
+	Health:
+		HP: 7500
+	Armor:
+		Type: Heavy
+	Buildable:
+		Prerequisites: ~disabled
+
+ScoutAnt:
+	Inherits: Ant
+	Tooltip:
+		Name: Scout Ant
+		GenericVisibility: none
+	Health:
+		HP: 8500
+	Armor:
+		Type: Light
+	AutoTarget:
+		ScanRadius: 7
+	Buildable:
+		Prerequisites: ~disabled
+
+WarriorAnt:
+	Inherits: Ant
+	Tooltip:
+		Name: Warrior Ant
+		GenericVisibility: none
+	Mobile:
+		Speed: 65
+	Health:
+		HP: 12500
+	Armor:
+		Type: Heavy
+	Armament:
+		Weapon: MandibleHeavy
+	Buildable:
+		Prerequisites: ~disabled
+	RenderSprites:
+		Image: Ant

@@ -10,7 +10,6 @@
 	Mobile:
 		Speed: 56
 		TurnSpeed: 5
-		Crushes: wall, crate, infantry
 	Health:
 		HP: 60000
 	Armor:
@@ -98,7 +97,7 @@ BUS:
 	Mobile:
 		TurnSpeed: 5
 		Speed: 113
-		RequiresCondition: !empdisable && !loading
+		PauseOnCondition: empdisable || loading || being-captured
 	Health:
 		HP: 10000
 	Armor:
@@ -124,7 +123,7 @@ PICK:
 	Mobile:
 		TurnSpeed: 5
 		Speed: 113
-		RequiresCondition: !empdisable && !loading
+		PauseOnCondition: empdisable || loading || being-captured
 	Health:
 		HP: 10000
 	Armor:
@@ -150,7 +149,7 @@ CAR:
 	Mobile:
 		TurnSpeed: 5
 		Speed: 113
-		RequiresCondition: !empdisable && !loading
+		PauseOnCondition: empdisable || loading || being-captured
 	Health:
 		HP: 10000
 	Armor:
@@ -176,7 +175,7 @@ WINI:
 	Mobile:
 		TurnSpeed: 5
 		Speed: 113
-		RequiresCondition: !empdisable && !loading
+		PauseOnCondition: empdisable || loading || being-captured
 	Health:
 		HP: 20000
 	Armor:

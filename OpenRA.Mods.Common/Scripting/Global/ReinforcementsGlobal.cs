@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -16,6 +16,7 @@ using Eluant;
 using OpenRA.Activities;
 using OpenRA.Effects;
 using OpenRA.Mods.Common.Activities;
+using OpenRA.Mods.Common.Effects;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Primitives;
 using OpenRA.Scripting;
@@ -84,24 +85,21 @@ namespace OpenRA.Mods.Common.Scripting
 				actors.Add(actor);
 
 				var actionDelay = i * interval;
-				Action actorAction = () =>
+				Activity queuedActivity = null;
+				if (af != null)
 				{
-					Context.World.Add(actor);
-					for (var j = 1; j < entryPath.Length; j++)
-						Move(actor, entryPath[j]);
-
-					if (af != null)
+					queuedActivity = new CallFunc(() =>
 					{
-						actor.QueueActivity(new CallFunc(() =>
-						{
-							using (af)
-							using (var a = actor.ToLuaValue(Context))
-								af.Call(a);
-						}));
-					}
-				};
+						using (af)
+						using (var a = actor.ToLuaValue(Context))
+							af.Call(a);
+					});
+				}
 
-				Context.World.AddFrameEndTask(w => w.Add(new DelayedAction(actionDelay, actorAction)));
+				// We need to exclude the spawn location from the movement path
+				var path = entryPath.Skip(1).ToArray();
+
+				Context.World.AddFrameEndTask(w => w.Add(new SpawnActorEffect(actor, actionDelay, path, queuedActivity)));
 			}
 
 			return actors.ToArray();
@@ -159,21 +157,19 @@ namespace OpenRA.Mods.Common.Scripting
 					// Try to find an alternative landing spot if we can't land at the current destination
 					if (!aircraft.CanLand(destination) && dropRange > 0)
 					{
-						var mobiles = cargo != null ? cargo.Passengers.Select(a =>
-						{
-							var mobileInfo = a.Info.TraitInfoOrDefault<MobileInfo>();
-							if (mobileInfo == null)
-								return new Pair<MobileInfo, uint>(null, 0);
-
-							return new Pair<MobileInfo, uint>(mobileInfo, (uint)mobileInfo.GetMovementClass(a.World.Map.Rules.TileSet));
-						}) : new Pair<MobileInfo, uint>[0];
+						var locomotors = cargo.Passengers
+							.Select(a => a.Info.TraitInfoOrDefault<MobileInfo>())
+							.Where(m => m != null)
+							.Distinct()
+							.Select(m => m.LocomotorInfo)
+							.ToList();
 
 						foreach (var c in transport.World.Map.FindTilesInCircle(destination, dropRange))
 						{
 							if (!aircraft.CanLand(c))
 								continue;
 
-							if (!mobiles.All(m => m.First == null || domainIndex.IsPassable(destination, c, m.First, m.Second)))
+							if (!locomotors.All(m => domainIndex.IsPassable(destination, c, m)))
 								continue;
 
 							destination = c;
@@ -187,7 +183,7 @@ namespace OpenRA.Mods.Common.Scripting
 							Move(transport, destination);
 
 						transport.QueueActivity(new Turn(transport, aircraft.Info.InitialFacing));
-						transport.QueueActivity(new HeliLand(transport, true));
+						transport.QueueActivity(new Land(transport));
 					}
 					else
 					{

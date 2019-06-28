@@ -1,5 +1,4 @@
 Metrics:
-	ButtonBaseLine: 0
 	ButtonDepth: 1
 	ButtonFont: Regular
 	ButtonTextColor: FFFFFF
@@ -36,6 +35,7 @@ Metrics:
 	TextfieldColor: FFFFFF
 	TextfieldColorDisabled: 808080
 	TextfieldColorInvalid: FFC0C0
+	TextfieldColorHighlight: 195BC4
 	TextfieldFont: Regular
 	WaitingGameColor: 00FF00
 	UPnPDisabledColor: FFFFFF

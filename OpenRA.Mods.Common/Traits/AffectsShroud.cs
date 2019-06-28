@@ -1,6 +1,6 @@
 #region Copyright & License Information
 /*
- * Copyright 2007-2018 The OpenRA Developers (see AUTHORS)
+ * Copyright 2007-2019 The OpenRA Developers (see AUTHORS)
  * This file is part of OpenRA, which is free software. It is made
  * available to you under the terms of the GNU General Public License
  * as published by the Free Software Foundation, either version 3 of
@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Traits;
 
@@ -30,14 +31,26 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		static readonly PPos[] NoCells = { };
 
-		[Sync] CPos cachedLocation;
-		[Sync] bool cachedTraitDisabled;
+		readonly HashSet<PPos> footprint;
+
+		[Sync]
+		CPos cachedLocation;
+
+		[Sync]
+		WDist cachedRange;
+
+		[Sync]
+		protected bool CachedTraitDisabled { get; private set; }
 
 		protected abstract void AddCellsToPlayerShroud(Actor self, Player player, PPos[] uv);
 		protected abstract void RemoveCellsFromPlayerShroud(Actor self, Player player);
 
 		public AffectsShroud(Actor self, AffectsShroudInfo info)
-			: base(info) { }
+			: base(info)
+		{
+			if (Info.Type == VisibilityType.Footprint)
+				footprint = new HashSet<PPos>();
+		}
 
 		PPos[] ProjectedCells(Actor self)
 		{
@@ -47,9 +60,14 @@ namespace OpenRA.Mods.Common.Traits
 				return NoCells;
 
 			if (Info.Type == VisibilityType.Footprint)
-				return self.OccupiesSpace.OccupiedCells()
-					.SelectMany(kv => Shroud.ProjectedCellsInRange(map, kv.First, range, Info.MaxHeightDelta))
-					.Distinct().ToArray();
+			{
+				// PERF: Reuse collection to avoid allocations.
+				footprint.UnionWith(self.OccupiesSpace.OccupiedCells()
+					.SelectMany(kv => Shroud.ProjectedCellsInRange(map, kv.First, range, Info.MaxHeightDelta)));
+				var cells = footprint.ToArray();
+				footprint.Clear();
+				return cells;
+			}
 
 			var pos = self.CenterPosition;
 			if (Info.Type == VisibilityType.GroundPosition)
@@ -68,12 +86,14 @@ namespace OpenRA.Mods.Common.Traits
 			var projectedPos = centerPosition - new WVec(0, centerPosition.Z, centerPosition.Z);
 			var projectedLocation = self.World.Map.CellContaining(projectedPos);
 			var traitDisabled = IsTraitDisabled;
+			var range = Range;
 
-			if (cachedLocation == projectedLocation && traitDisabled == cachedTraitDisabled)
+			if (cachedLocation == projectedLocation && cachedRange == range && traitDisabled == CachedTraitDisabled)
 				return;
 
+			cachedRange = range;
 			cachedLocation = projectedLocation;
-			cachedTraitDisabled = traitDisabled;
+			CachedTraitDisabled = traitDisabled;
 
 			var cells = ProjectedCells(self);
 			foreach (var p in self.World.Players)
@@ -88,7 +108,7 @@ namespace OpenRA.Mods.Common.Traits
 			var centerPosition = self.CenterPosition;
 			var projectedPos = centerPosition - new WVec(0, centerPosition.Z, centerPosition.Z);
 			cachedLocation = self.World.Map.CellContaining(projectedPos);
-			cachedTraitDisabled = IsTraitDisabled;
+			CachedTraitDisabled = IsTraitDisabled;
 			var cells = ProjectedCells(self);
 
 			foreach (var p in self.World.Players)
@@ -101,6 +121,6 @@ namespace OpenRA.Mods.Common.Traits
 				RemoveCellsFromPlayerShroud(self, p);
 		}
 
-		public WDist Range { get { return cachedTraitDisabled ? WDist.Zero : Info.Range; } }
+		public virtual WDist Range { get { return CachedTraitDisabled ? WDist.Zero : Info.Range; } }
 	}
 }
